@@ -70,6 +70,7 @@ public class RecordService {
   static final String HEADERS = "headers";
 
   private boolean enableSchematization = false;
+  private boolean autoSchematization = true;
   private SnowflakeSinkConnectorConfig.BehaviorOnNullValues behaviorOnNullValues =
       SnowflakeSinkConnectorConfig.BehaviorOnNullValues.DEFAULT;
 
@@ -135,6 +136,24 @@ public class RecordService {
     }
     return this.enableSchematization;
   }
+
+/**
+ * extract autoSchematization from the connector config and set the value for the recordService
+ *
+ * <p>The extracted boolean is returned for external usage.
+ *
+ * @param connectorConfig the connector config map
+ * @return a boolean indicating whether schematization is enabled
+ */
+public boolean setAndGetAutoSchematizationFromConfig(
+    final Map<String, String> connectorConfig) {
+  if (connectorConfig.containsKey(SnowflakeSinkConnectorConfig.SCHEMATIZATION_AUTO_CONFIG)) {
+    this.autoSchematization =
+        Boolean.parseBoolean(
+            connectorConfig.get(SnowflakeSinkConnectorConfig.SCHEMATIZATION_AUTO_CONFIG));
+  }
+  return this.autoSchematization;
+}
 
   /**
    * Directly set the enableSchematization through param

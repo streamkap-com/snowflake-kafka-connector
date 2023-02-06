@@ -146,7 +146,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   }
 
   @Override
-  public void createTableWithOnlyMetadataColumn(final String tableName) {
+  public void createTableWithOnlyMetadataColumn(final String tableName, final boolean autoSchematization) {
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
     String createTableQuery =
@@ -162,17 +162,19 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
       throw SnowflakeErrors.ERROR_2007.getException(e);
     }
 
-    // Enable schema evolution by default if the table is created by the connector
-    String enableSchemaEvolutionQuery =
-        "alter table identifier(?) set ENABLE_SCHEMA_EVOLUTION = true";
-    try {
-      PreparedStatement stmt = conn.prepareStatement(enableSchemaEvolutionQuery);
-      stmt.setString(1, tableName);
-      stmt.executeQuery();
-    } catch (SQLException e) {
-      // Skip the error given that schema evolution is still under PrPr
-      LOGGER.warn(
-          "Enable schema evolution failed on table: {}, message: {}", tableName, e.getMessage());
+    if (autoSchematization) {
+      // Enable schema evolution by default if the table is created by the connector
+      String enableSchemaEvolutionQuery =
+          "alter table identifier(?) set ENABLE_SCHEMA_EVOLUTION = true";
+      try {
+        PreparedStatement stmt = conn.prepareStatement(enableSchemaEvolutionQuery);
+        stmt.setString(1, tableName);
+        stmt.executeQuery();
+      } catch (SQLException e) {
+        // Skip the error given that schema evolution is still under PrPr
+        LOGGER.warn(
+            "Enable schema evolution failed on table: {}, message: {}", tableName, e.getMessage());
+      }
     }
 
     LOGGER.info("Created table {} with only RECORD_METADATA column", tableName);

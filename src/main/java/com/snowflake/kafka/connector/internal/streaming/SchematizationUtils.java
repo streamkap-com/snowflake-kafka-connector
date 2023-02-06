@@ -241,6 +241,9 @@ public class SchematizationUtils {
       case BOOLEAN:
         return "BOOLEAN";
       case STRING:
+        if (schemaName != null && schemaName.equals("io.debezium.data.Json")) {
+          return "VARIANT";
+        }
         return "VARCHAR";
       case BYTES:
         if (Decimal.LOGICAL_NAME.equals(schemaName)) {
