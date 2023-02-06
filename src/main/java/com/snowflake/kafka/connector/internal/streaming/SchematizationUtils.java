@@ -179,7 +179,6 @@ public class SchematizationUtils {
       // only when the type of the value is unrecognizable for JAVA
       throw SnowflakeErrors.ERROR_5021.getException("class: " + value.getClass());
     }
-    // Passing null to schemaName when there is no schema information
     return convertToSnowflakeType(schemaType, null);
   }
 
@@ -241,6 +240,9 @@ public class SchematizationUtils {
       case BOOLEAN:
         return "BOOLEAN";
       case STRING:
+        if (schemaName != null && schemaName.equals("io.debezium.data.Json")) {
+          return "VARIANT";
+        }
         return "VARCHAR";
       case BYTES:
         if (Decimal.LOGICAL_NAME.equals(schemaName)) {
