@@ -265,7 +265,6 @@ public class TopicPartitionChannel {
         this.recordService.setAndGetAutoSchematizationFromConfig(sfConnectorConfig);
     this.enableSchemaEvolution =
         this.enableSchematization
-            && this.conn != null
             && (!autoSchematization || hasSchemaEvolutionPermission);
 
     if (isEnableChannelOffsetMigration(sfConnectorConfig)) {
