@@ -35,13 +35,14 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 import net.snowflake.client.jdbc.internal.fasterxml.jackson.databind.JsonNode;
+
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
-import org.apache.kafka.connect.data.Schema.Type;
 import org.apache.kafka.connect.data.Time;
 import org.apache.kafka.connect.data.Timestamp;
+import org.apache.kafka.connect.data.Schema.Type;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
