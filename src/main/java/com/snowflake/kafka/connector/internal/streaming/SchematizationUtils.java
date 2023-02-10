@@ -215,6 +215,24 @@ public class SchematizationUtils {
 
   /** Convert the kafka data type to Snowflake data type */
   private static String convertToSnowflakeType(Type kafkaType, String schemaName) {
+      if (schemaName != null) {
+        switch (schemaName) {
+            case Decimal.LOGICAL_NAME:
+              return "DOUBLE";
+            case Time.LOGICAL_NAME:
+            case Timestamp.LOGICAL_NAME:
+            case "io.debezium.time.ZonedTimestamp":
+            case "io.debezium.time.ZonedTime":
+            case "io.debezium.time.MicroTime":
+            case "io.debezium.time.Timestamp":
+            case "io.debezium.time.MicroTimestamp":
+              return "TIMESTAMP";
+            case Date.LOGICAL_NAME:
+            case "io.debezium.time.Date":
+              return "DATE";
+        }
+    }
+
     switch (kafkaType) {
       case INT8:
         return "BYTEINT";
