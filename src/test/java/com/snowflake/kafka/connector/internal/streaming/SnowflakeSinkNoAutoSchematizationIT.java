@@ -32,7 +32,7 @@ import java.util.*;
 public class SnowflakeSinkNoAutoSchematizationIT {
 
   private SnowflakeConnectionService conn = TestUtils.getConnectionServiceStreamingWithEncryptedKey();
-  private String table = TestUtils.randomTableName();
+  private String table = TestUtils.getDatabase() + "." + TestUtils.getschema() + "." + TestUtils.randomTableName();
   private int partition = 0;
   private int partition2 = 1;
   private String topic = "test";
@@ -108,7 +108,7 @@ public class SnowflakeSinkNoAutoSchematizationIT {
             () -> service.getOffset(new TopicPartition(topic, partition)) == endOffset + 1, 20, 5);
 
     Map<String, Object> contentForAvroTableCreation = new HashMap<>();
-    contentForAvroTableCreation.put("a;;", "some-value");
+    contentForAvroTableCreation.put("all", "some-value");
     TestUtils.checkTableContentOneRow(table, contentForAvroTableCreation);
 
     service.closeAll();

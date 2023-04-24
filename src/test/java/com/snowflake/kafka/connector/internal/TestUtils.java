@@ -174,6 +174,14 @@ public class TestUtils {
     return configuration;
   }
 
+  public static String getDatabase() {
+    return getProfile(PROFILE_PATH).get(DATABASE).asText();
+  }
+
+  public static String getschema() {
+    return getProfile(PROFILE_PATH).get(SCHEMA).asText();
+  }
+
   static String getEncryptedPrivateKey() {
     return getProfile(PROFILE_PATH).get(ENCRYPTED_PRIVATE_KEY).asText();
   }
