@@ -17,6 +17,8 @@ public class EncryptionUtils {
     key = key.replaceAll("-+[A-Za-z ]+-+", "");
     key = key.replaceAll("\\s", "");
 
+    System.out.println("parseEncryptedPrivateKey: " + key + " XXXXXXXXX " + passphrase);
+
     StringBuilder builder = new StringBuilder();
     builder.append("-----BEGIN ENCRYPTED PRIVATE KEY-----");
     for (int i = 0; i < key.length(); i++) {

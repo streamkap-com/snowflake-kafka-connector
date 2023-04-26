@@ -1,38 +1,35 @@
 package com.snowflake.kafka.connector.internal.streaming;
 
-import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
-import com.snowflake.kafka.connector.Utils;
-import com.snowflake.kafka.connector.dlq.InMemoryKafkaRecordErrorReporter;
-import com.snowflake.kafka.connector.internal.*;
-import com.snowflake.kafka.connector.records.SnowflakeConverter;
-import com.snowflake.kafka.connector.records.SnowflakeJsonConverter;
-import io.confluent.connect.avro.AvroConverter;
-import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import net.snowflake.client.jdbc.internal.fasterxml.jackson.databind.ObjectMapper;
-import net.snowflake.ingest.utils.SFException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
-import org.apache.kafka.connect.errors.ConnectException;
-import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.*;
+import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
+import com.snowflake.kafka.connector.dlq.InMemoryKafkaRecordErrorReporter;
+import com.snowflake.kafka.connector.internal.SnowflakeConnectionService;
+import com.snowflake.kafka.connector.internal.SnowflakeSinkService;
+import com.snowflake.kafka.connector.internal.SnowflakeSinkServiceFactory;
+import com.snowflake.kafka.connector.internal.TestUtils;
+
+import io.confluent.connect.avro.AvroConverter;
+import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import net.snowflake.client.jdbc.internal.fasterxml.jackson.databind.ObjectMapper;
 
 public class SnowflakeSinkNoAutoSchematizationIT {
 
   private SnowflakeConnectionService conn = TestUtils.getConnectionServiceStreamingWithEncryptedKey();
-  private String table = TestUtils.getDatabase() + "." + TestUtils.getschema() + "." + TestUtils.randomTableName();
+  private String table = TestUtils.randomTableName();
+//   private String table = TestUtils.getDatabase() + "." + TestUtils.getschema() + "." + TestUtils.randomTableName();
   private int partition = 0;
   private int partition2 = 1;
   private String topic = "test";
@@ -52,6 +49,9 @@ public class SnowflakeSinkNoAutoSchematizationIT {
             SnowflakeSinkConnectorConfig.VALUE_CONVERTER_CONFIG_FIELD,
             "io.confluent.connect.avro.AvroConverter");
     config.put(SnowflakeSinkConnectorConfig.VALUE_SCHEMA_REGISTRY_CONFIG_FIELD, "http://fake-url");
+    config.put(SnowflakeSinkConnectorConfig.ENABLE_SCHEMATIZATION_CONFIG, "true");
+    config.put(SnowflakeSinkConnectorConfig.SCHEMATIZATION_AUTO_CONFIG, "false");
+    
     // get rid of these at the end
     SnowflakeSinkConnectorConfig.setDefaultValues(config);
     // avro
@@ -99,6 +99,7 @@ public class SnowflakeSinkNoAutoSchematizationIT {
             () -> service.getOffset(new TopicPartition(topic, partition)) == startOffset, 20, 5);
 
     Map<String, String> sfAvroSchemaForTableCreation = new HashMap<>();
+    sfAvroSchemaForTableCreation.put("RECORD_METADATA", "VARIANT");
     sfAvroSchemaForTableCreation.put("all", "VARCHAR");
     TestUtils.checkTableSchema(table, sfAvroSchemaForTableCreation);
 

@@ -149,7 +149,7 @@ public class SnowflakeConnectionServiceV1 extends EnableLogging
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
-      throw SnowflakeErrors.ERROR_2007.getException(e);
+ throw SnowflakeErrors.ERROR_2007.getException(e);
     }
 
     if (autoSchematization) {

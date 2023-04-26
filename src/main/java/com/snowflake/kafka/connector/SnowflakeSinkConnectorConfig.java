@@ -81,6 +81,14 @@ public class SnowflakeSinkConnectorConfig {
       "If true, use snowflake automatic schema evolution feature."
           + "NOTE: you need to grant evolve schema to " + SNOWFLAKE_USER;
   
+
+  public static final String SCHEMATIZATION_RESERVED_WORDS_PREFIX_CONFIG = "snowflake.schematization.reserved.words.prefix";
+  public static final String SCHEMATIZATION_RESERVED_WORDS_PREFIX_DEFAULT = "_";
+  public static final String SCHEMATIZATION_RESERVED_WORDS_PREFIX_DISPLAY = "Prefix to add to columns which have a name that is a Snowflake reserved workd";
+  public static final String SCHEMATIZATION_RESERVED_WORDS_PREFIX_DOC =
+      "Will be added as a prefix to the field from the kafka schema"
+          + "NOTE: you need to grant evolve schema to " + SNOWFLAKE_USER;
+            
   // Proxy Info
   private static final String PROXY_INFO = "Proxy Info";
   public static final String JVM_PROXY_HOST = "jvm.proxy.host";

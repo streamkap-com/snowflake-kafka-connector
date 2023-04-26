@@ -220,10 +220,17 @@ public class TestUtils {
   /** Given a profile file path name, generate a connection by constructing a snowflake driver. */
   private static Connection generateConnectionToSnowflake(final String profileFileName)
       throws Exception {
-    SnowflakeURL url = new SnowflakeURL(getConfFromFileName(profileFileName).get(Utils.SF_URL));
+    Map<String, String> usedConf;
+    if (getPrivateKeyPassphrase() != null) {
+      usedConf = getConfWithEncryptedKey();
+    } else {
+      usedConf = getConfFromFileName(profileFileName);
+    }
+
+    SnowflakeURL url = new SnowflakeURL(usedConf.get(Utils.SF_URL));
 
     Properties properties =
-        InternalUtils.createProperties(getConfFromFileName(profileFileName), url.sslEnabled());
+        InternalUtils.createProperties(usedConf, url.sslEnabled());
 
     Connection connToSnowflake = new SnowflakeDriver().connect(url.getJdbcUrl(), properties);
 
