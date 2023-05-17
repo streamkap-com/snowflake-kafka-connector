@@ -158,6 +158,7 @@ public class TopicPartitionChannel {
 
   // Whether schematization has been enabled.
   private final boolean enableSchematization;
+  private final boolean autoSchematization;
 
   // Whether schema evolution could be done on this channel
   private final boolean enableSchemaEvolution;
