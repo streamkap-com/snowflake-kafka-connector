@@ -33,7 +33,7 @@ public class DynamicTablesIT {
   }
 
   @Test
-  // @Ignore("draft uses manually created table")
+  @Ignore("draft uses manually created table")
   public void testCreateDynamicTable() throws Exception {
     DatabaseMetaData dm = conn.getDatabaseMetadata();
 
@@ -53,6 +53,13 @@ public class DynamicTablesIT {
     ;
     System.out.println("## creating TSTTBL_junit_V ###########################");
     PreparedStatement stm = dm.getConnection().prepareStatement(stmStr);
+    stm.execute();
+
+    // cannot set a comment on a DYNAMIC TABLE column: "Object found is of type 'DYNAMIC_TABLE', not specified type 'TABLE'"
+    // setting the comment on original table, or java schema evolution can mark the column as PRIMARY KEY
+    stmStr = "COMMENT ON COLUMN TSTTBL.id IS 'SKAP-PRIMARY_KEY[NUMBER(38,0)]'";
+    System.out.println("## marking primary keys TSTTBL ###########################");
+    stm = dm.getConnection().prepareStatement(stmStr);
     stm.execute();
 
     System.out.println("## TSTTBL_junit_V columns ###########################");
