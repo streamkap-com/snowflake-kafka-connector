@@ -262,10 +262,11 @@ public class TestUtils {
 
   /** @return JDBC config with encrypted private key */
   static Map<String, String> getConfWithEncryptedKey() {
-    if (conf == null) {
-      getPropertiesMapFromProfile(PROFILE_PATH);
+    Map<String, String> c = conf;
+    if (c == null) {
+      c = getPropertiesMapFromProfile(PROFILE_PATH);
     }
-    Map<String, String> config = new HashMap<>(conf);
+    Map<String, String> config = new HashMap<>(c);
 
     config.remove(Utils.SF_PRIVATE_KEY);
     config.put(Utils.SF_PRIVATE_KEY, getEncryptedPrivateKey());
