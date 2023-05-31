@@ -4,6 +4,8 @@ import com.snowflake.kafka.connector.internal.telemetry.SnowflakeTelemetryServic
 import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
 
 public interface SnowflakeConnectionService {
   /**
@@ -21,6 +23,13 @@ public interface SnowflakeConnectionService {
    * @param tableName table name
    */
   void createTable(String tableName);
+
+  /**
+   * create table is not exists
+   *
+   * @param tableName table name
+   */
+  DatabaseMetaData getDatabaseMetadata() throws SQLException;
 
   /**
    * create a snowpipe

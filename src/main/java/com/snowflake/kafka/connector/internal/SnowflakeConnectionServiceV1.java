@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -136,6 +137,11 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   @Override
   public void createTable(final String tableName) {
     createTable(tableName, false);
+  }
+
+  @Override
+  public DatabaseMetaData getDatabaseMetadata() throws SQLException {
+    return conn.getMetaData();
   }
 
   @Override
