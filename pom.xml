@@ -156,7 +156,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
                 <configuration>
-			        <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>					
+			        <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                     <skipTests>${skipUnitTests}</skipTests>
                 </configuration>
             </plugin>
@@ -497,7 +497,7 @@
 			<artifactId>junit-jupiter-api</artifactId>
 			<version>${junit.version}</version>
 			<scope>test</scope>
-		</dependency>        
+		</dependency>
         <dependency>
             <groupId>com.streamkap</groupId>
             <artifactId>streamkap-kafka-connect-common</artifactId>
