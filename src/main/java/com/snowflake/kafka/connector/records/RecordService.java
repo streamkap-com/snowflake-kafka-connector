@@ -29,8 +29,10 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TimeZone;
@@ -308,6 +310,9 @@ public boolean setAndGetAutoSchematizationFromConfig(
       Object columnValue;
       if (columnNode.isTextual()) {
         columnValue = columnNode.textValue();
+      } else if (columnNode.isBinary()) {
+        byte[] binaryValue = Base64.getDecoder().decode(columnNode.asText());
+        columnValue = HexFormat.of().formatHex(binaryValue);
       } else if (columnNode.isNull()) {
         columnValue = null;
       } else {
