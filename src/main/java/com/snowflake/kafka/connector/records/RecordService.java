@@ -313,6 +313,9 @@ public boolean setAndGetAutoSchematizationFromConfig(
         columnValue = HexFormat.of().formatHex(binaryValue);
       } else if (columnNode.isTextual()) {
         columnValue = columnNode.textValue();
+      } else if (columnNode.isBinary()) {
+        byte[] binaryValue = Base64.getDecoder().decode(columnNode.asText());
+        columnValue = HexFormat.of().formatHex(binaryValue);
       } else if (columnNode.isNull()) {
         columnValue = null;
       } else {
