@@ -1,14 +1,19 @@
 package com.snowflake.kafka.connector;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.transforms.ReplaceField;
 import org.junit.jupiter.api.Test;
 
+import com.snowflake.client.jdbc.SnowflakeDriver;
+import com.snowflake.kafka.connector.internal.InternalUtils;
+import com.snowflake.kafka.connector.internal.SnowflakeURL;
 import com.snowflake.kafka.connector.internal.TestUtils;
 import com.streamkap.common.test.sink.StreamkapSinkITBase;
 
@@ -28,7 +33,6 @@ public class StreamkapITSnowflake extends StreamkapSinkITBase<SnowflakeSinkTask>
     }
 
     public Map<String, String> getConf() {
-        Map<String, String> confFromJson = TestUtils.getConfWithEncryptedKey();
         Map<String, String> config = new HashMap<>();
         config.put("behavior.on.null.values", "IGNORE");
         config.put("connector.class", "com.snowflake.kafka.connector.SnowflakeSinkConnector");
@@ -70,7 +74,6 @@ public class StreamkapITSnowflake extends StreamkapSinkITBase<SnowflakeSinkTask>
         return false;
     }
 
-
     @Test
     public void testNominal() throws SQLException, InterruptedException {
         super.testNominal();
@@ -78,25 +81,25 @@ public class StreamkapITSnowflake extends StreamkapSinkITBase<SnowflakeSinkTask>
 
     // @Test
     // public void testMultiFieldKey() throws SQLException, InterruptedException {
-    //     super.testMultiFieldKey();
+    // super.testMultiFieldKey();
     // }
 
     // @Test
     // public void testNullKeyUpsert() throws SQLException, InterruptedException {
-    //     super.testNullKeyUpsert();
+    // super.testNullKeyUpsert();
     // }
 
     // @Test
     // public void testNullKeyAppend() throws SQLException, InterruptedException {
-    //     super.testNullKeyAppend();
+    // super.testNullKeyAppend();
     // }
 
     // @Test
     // public void testHardDelete() throws SQLException, InterruptedException {
-    //     Map<String, String> config = getConf();
-    //     config.put("databricks.ingestion.mode", "upsert");
-    //     config.put("databricks.hard.delete", "true");
-    //     super.testHardDelete(config);
+    // Map<String, String> config = getConf();
+    // config.put("databricks.ingestion.mode", "upsert");
+    // config.put("databricks.hard.delete", "true");
+    // super.testHardDelete(config);
     // }
 
     @Override
