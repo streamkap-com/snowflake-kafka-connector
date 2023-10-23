@@ -291,10 +291,16 @@ public class TestUtils {
   public static Connection generateConnectionToSnowflakeWithEncryptedKey()
       throws Exception {
     Map<String, String> conf = getConfWithEncryptedKey();
+    return generateConnectionFromConf(conf);
+  }
+
+    /** Given a profile file path name, generate a connection by constructing a snowflake driver. */
+  public static Connection generateConnectionFromConf(Map<String, String> conf)
+      throws Exception {
     SnowflakeURL url = new SnowflakeURL(conf.get(Utils.SF_URL));
 
     Properties properties =
-        InternalUtils.createProperties(conf, url.sslEnabled());
+        InternalUtils.createProperties(conf, url);
 
     Connection connToSnowflake = new SnowflakeDriver().connect(url.getJdbcUrl(), properties);
 

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import com.snowflake.client.jdbc.SnowflakeDriver;
 import com.snowflake.kafka.connector.internal.InternalUtils;
 import com.snowflake.kafka.connector.internal.SnowflakeURL;
+import com.snowflake.kafka.connector.internal.TestUtils;
 import com.streamkap.common.test.sink.StreamkapSinkITBase;
 
 public class SnowflakeStreamkapSinkIT extends StreamkapSinkITBase<SnowflakeSinkTask> {
@@ -43,13 +44,7 @@ public class SnowflakeStreamkapSinkIT extends StreamkapSinkITBase<SnowflakeSinkT
         conf.put(Utils.NAME, "TEST_CONNECTOR");
         conf.put(Utils.TASK_ID, "");
 
-        SnowflakeURL url = new SnowflakeURL(conf.get(Utils.SF_URL));
-
-        Properties properties = InternalUtils.createProperties(conf, url.sslEnabled());
-
-        Connection connToSnowflake = new SnowflakeDriver().connect(url.getJdbcUrl(), properties);
-
-        return connToSnowflake;
+        return TestUtils.generateConnectionFromConf(conf);
     }
 
     public Map<String, String> getConf() {
