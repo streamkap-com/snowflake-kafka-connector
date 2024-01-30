@@ -35,6 +35,7 @@ import java.net.Authenticator;
 import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.net.URLConnection;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -754,6 +755,24 @@ public class Utils {
 
       LOGGER.error("Invalid config: " + invalidParamsMessage);
       throw SnowflakeErrors.ERROR_0001.getException(invalidParamsMessage);
+    }
+  }
+
+  public static String enquoteIdentifier(String identifier, boolean alwaysQuote) throws SQLException {
+    int len = identifier.length();
+    if (len < 1 || len > 128) {
+      throw new SQLException("Invalid name");
+    }
+    if (Pattern.compile("[\\p{Alpha}][\\p{Alnum}_]*").matcher(identifier).matches()) {
+      return alwaysQuote ?  "\"" + identifier + "\"" : identifier;
+    }
+    if (identifier.matches("^\".+\"$")) {
+      identifier = identifier.substring(1, len - 1);
+    }
+    if (Pattern.compile("[^\u0000\"]+").matcher(identifier).matches()) {
+      return "\"" + identifier + "\"";
+    } else {
+      throw new SQLException("Invalid name");
     }
   }
 }

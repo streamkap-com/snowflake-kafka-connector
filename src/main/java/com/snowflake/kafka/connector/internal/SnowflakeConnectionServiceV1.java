@@ -2,6 +2,7 @@ package com.snowflake.kafka.connector.internal;
 
 import static com.snowflake.kafka.connector.Utils.TABLE_COLUMN_CONTENT;
 import static com.snowflake.kafka.connector.Utils.TABLE_COLUMN_METADATA;
+import static com.snowflake.kafka.connector.Utils.enquoteIdentifier;
 
 import com.snowflake.kafka.connector.Utils;
 import com.snowflake.kafka.connector.internal.streaming.IngestionMethodConfig;
@@ -123,7 +124,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     }
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -148,7 +149,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
 
     try {
       PreparedStatement stmt = conn.prepareStatement(createTableQuery);
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -161,7 +162,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
           "alter table identifier(?) set ENABLE_SCHEMA_EVOLUTION = true";
       try {
         PreparedStatement stmt = conn.prepareStatement(enableSchemaEvolutionQuery);
-        stmt.setString(1, tableName);
+        stmt.setString(1, enquoteIdentifier(tableName, false));
         stmt.executeQuery();
       } catch (SQLException e) {
         // Skip the error given that schema evolution is still under PrPr
@@ -191,9 +192,10 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
       query = "create pipe if not exists identifier(?) ";
     }
     try {
-      query += "as " + pipeDefinition(tableName, stageName);
+      // TODO SQL INJECTION??
+      query += "as " + pipeDefinition(enquoteIdentifier(tableName, false), enquoteIdentifier(stageName, false));
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, pipeName);
+      stmt.setString(1, enquoteIdentifier(pipeName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -220,7 +222,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     }
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, stageName);
+      stmt.setString(1, enquoteIdentifier(stageName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -243,7 +245,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean exist;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       stmt.execute();
       exist = true;
     } catch (Exception e) {
@@ -270,7 +272,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean exist;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, stageName);
+      stmt.setString(1, enquoteIdentifier(stageName, false));
       stmt.execute();
       exist = true;
     } catch (SQLException e) {
@@ -297,7 +299,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean exist;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, pipeName);
+      stmt.setString(1, enquoteIdentifier(pipeName, false));
       stmt.execute();
       exist = true;
     } catch (SQLException e) {
@@ -325,7 +327,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean compatible;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       result = stmt.executeQuery();
       boolean hasMeta = false;
       boolean hasContent = false;
@@ -383,7 +385,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean isVariant = false;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       result = stmt.executeQuery();
       while (result.next()) {
         // The result schema is row idx | column name | data type | kind | null? | ...
@@ -402,7 +404,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
       if (!hasMeta) {
         String metaQuery = "alter table identifier(?) add RECORD_METADATA VARIANT";
         stmt = conn.prepareStatement(metaQuery);
-        stmt.setString(1, tableName);
+        stmt.setString(1, enquoteIdentifier(tableName, false));
         stmt.executeQuery();
       } else {
         if (!isVariant) {
@@ -435,7 +437,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     String myRole = SchematizationUtils.formatName(role);
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       result = stmt.executeQuery();
       while (result.next()) {
         if (!result.getString("grantee_name").equals(myRole)) {
@@ -453,10 +455,11 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
 
     // whether the table has ENABLE_SCHEMA_EVOLUTION option set to true on the table.
     boolean hasTableOptionEnabled = false;
-    query = "show tables like '" + tableName + "' limit 1";
     try {
+      // TODO - SQL INJECTION ??
+      query = "show tables like '" + enquoteIdentifier(tableName, false) + "' limit 1";
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       result = stmt.executeQuery();
       while (result.next()) {
         String enableSchemaEvolution = "N";
@@ -493,24 +496,24 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     StringBuilder appendColumnQuery = new StringBuilder("alter table identifier(?) add column ");
     boolean first = true;
     StringBuilder logColumn = new StringBuilder("[");
-    for (String columnName : columnToType.keySet()) {
-      if (first) {
-        first = false;
-      } else {
-        appendColumnQuery.append(", ");
-        logColumn.append(",");
-      }
-      appendColumnQuery
-          .append(columnName)
-          .append(" ")
-          .append(columnToType.get(columnName))
-          .append(" comment 'column created by schema evolution from Snowflake Kafka Connector'");
-      logColumn.append(columnName).append(" (").append(columnToType.get(columnName)).append(")");
-    }
     try {
+      for (String columnName : columnToType.keySet()) {
+        if (first) {
+          first = false;
+        } else {
+          appendColumnQuery.append(", ");
+          logColumn.append(",");
+        }
+        appendColumnQuery
+            .append(enquoteIdentifier(columnName, false))
+            .append(" ")
+            .append(columnToType.get(columnName))
+            .append(" comment 'column created by schema evolution from Snowflake Kafka Connector'");
+        logColumn.append(columnName).append(" (").append(columnToType.get(columnName)).append(")");
+      }
       LOGGER.info("Trying to run query: {}", appendColumnQuery.toString());
       PreparedStatement stmt = conn.prepareStatement(appendColumnQuery.toString());
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -534,26 +537,26 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     StringBuilder dropNotNullQuery = new StringBuilder("alter table identifier(?) alter ");
     boolean isFirstColumn = true;
     StringBuilder logColumn = new StringBuilder("[");
-    for (String columnName : columnNames) {
-      if (isFirstColumn) {
-        isFirstColumn = false;
-      } else {
-        dropNotNullQuery.append(", ");
-        logColumn.append(", ");
-      }
-      dropNotNullQuery
-          .append(columnName)
-          .append(" drop not null, ")
-          .append(columnName)
-          .append(
-              " comment 'column altered to be nullable by schema evolution from Snowflake Kafka"
-                  + " Connector'");
-      logColumn.append(columnName);
-    }
     try {
+      for (String columnName : columnNames) {
+        if (isFirstColumn) {
+          isFirstColumn = false;
+        } else {
+          dropNotNullQuery.append(", ");
+          logColumn.append(", ");
+        }
+        dropNotNullQuery
+            .append(enquoteIdentifier(columnName, false))
+            .append(" drop not null, ")
+            .append(columnName)
+            .append(
+                " comment 'column altered to be nullable by schema evolution from Snowflake Kafka"
+                    + " Connector'");
+        logColumn.append(columnName);
+      }
       LOGGER.info("Trying to run query: {}", dropNotNullQuery.toString());
       PreparedStatement stmt = conn.prepareStatement(dropNotNullQuery.toString());
-      stmt.setString(1, tableName);
+      stmt.setString(1, enquoteIdentifier(tableName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -601,7 +604,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean compatible;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, pipeName);
+      stmt.setString(1, enquoteIdentifier(pipeName, false));
       result = stmt.executeQuery();
       if (!result.next()) {
         compatible = false;
@@ -636,7 +639,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     String query = "use database identifier(?)";
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, databaseName);
+      stmt.setString(1, enquoteIdentifier(databaseName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -653,7 +656,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean foundSchema = false;
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, schemaName);
+      stmt.setString(1, enquoteIdentifier(schemaName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -671,7 +674,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
 
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, pipeName);
+      stmt.setString(1, enquoteIdentifier(pipeName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -688,8 +691,9 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     if (!stageExist(stageName)) {
       return false;
     }
-    String query = "list @" + stageName;
     try {
+      // TODO SQL INJECTION?
+      String query = "list @" + enquoteIdentifier(stageName, false);
       PreparedStatement stmt = conn.prepareStatement(query);
       ResultSet resultSet = stmt.executeQuery();
       if (InternalUtils.resultSize(resultSet) == 0) {
@@ -714,7 +718,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     String query = "drop stage if exists identifier(?)";
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, stageName);
+      stmt.setString(1, enquoteIdentifier(stageName, false));
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -755,12 +759,12 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
             file,
             FileNameUtils.removePrefixAndGZFromFileName(name),
             true);
+        LOGGER.info("moved file: {} from stage: {} to table stage: {}", name, stageName, tableName);
+        // remove
+        removeFile(stageName, name);
       } catch (SQLException e) {
         throw SnowflakeErrors.ERROR_2003.getException(e, this.telemetry);
       }
-      LOGGER.info("moved file: {} from stage: {} to table stage: {}", name, stageName, tableName);
-      // remove
-      removeFile(stageName, name);
     }
   }
 
@@ -779,15 +783,17 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     InternalUtils.assertNotEmpty("stageName", stageName);
     String query;
     int stageNameLength;
-    if (isTableStage) {
-      stageNameLength = 0;
-      query = "ls @%" + stageName;
-    } else {
-      stageNameLength = stageName.length() + 1; // stage name + '/'
-      query = "ls @" + stageName + "/" + prefix;
-    }
     List<String> result;
     try {
+      if (isTableStage) {
+        stageNameLength = 0;
+        // TODO SQL INJECTION ??
+        query = "ls @%" + enquoteIdentifier(stageName, false);
+      } else {
+        stageNameLength = stageName.length() + 1; // stage name + '/'
+        // TODO SQL INJECTION??
+        query = "ls @" + enquoteIdentifier(stageName, false) + "/" + prefix;
+      }
       PreparedStatement stmt = conn.prepareStatement(query);
       ResultSet resultSet = stmt.executeQuery();
 
@@ -964,12 +970,12 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
    * @param stageName stage name
    * @return pipe definition string
    */
-  private String pipeDefinition(String tableName, String stageName) {
+  private String pipeDefinition(String tableName, String stageName) throws SQLException {
     return "copy into "
-        + tableName
+        + enquoteIdentifier(tableName, false)
         + "(RECORD_METADATA, RECORD_CONTENT) from (select $1:meta, $1:content from"
         + " @"
-        + stageName
+        + enquoteIdentifier(stageName, false)
         + " t) file_format = (type = 'json')";
   }
 
@@ -981,9 +987,8 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
    */
   private void removeFile(String stageName, String fileName) {
     InternalUtils.assertNotEmpty("stageName", stageName);
-    String query = "rm @" + stageName + "/" + fileName;
-
     try {
+      String query = "rm @" + enquoteIdentifier(stageName, false) + "/" + fileName;
       InternalUtils.backoffAndRetry(
           telemetry,
           SnowflakeInternalOperations.REMOVE_FILE_FROM_INTERNAL_STAGE,
