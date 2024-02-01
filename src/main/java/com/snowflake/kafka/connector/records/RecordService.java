@@ -308,10 +308,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
       String columnName = columnNames.next();
       JsonNode columnNode = node.get(columnName);
       Object columnValue;
-      if (columnNode.isBinary()) {
-        byte[] binaryValue = Base64.getDecoder().decode(columnNode.asText());
-        columnValue = HexFormat.of().formatHex(binaryValue);
-      } else if (columnNode.isTextual()) {
+      if (columnNode.isTextual()) {
         columnValue = columnNode.textValue();
       } else if (columnNode.isBinary()) {
         byte[] binaryValue = Base64.getDecoder().decode(columnNode.asText());
