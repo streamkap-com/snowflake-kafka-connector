@@ -45,7 +45,7 @@ public class SnowflakeStreamkapSinkIT extends StreamkapSinkITBase<SnowflakeSinkT
 
         SnowflakeURL url = new SnowflakeURL(conf.get(Utils.SF_URL));
 
-        Properties properties = InternalUtils.createProperties(conf, url.sslEnabled());
+        Properties properties = InternalUtils.createProperties(conf, url);
 
         Connection connToSnowflake = new SnowflakeDriver().connect(url.getJdbcUrl(), properties);
 
