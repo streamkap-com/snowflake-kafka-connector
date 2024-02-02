@@ -100,7 +100,7 @@ public class SnowflakeStreamkapSinkIT extends StreamkapSinkITBase<SnowflakeSinkT
 
     @Test
     public void testNominal() throws SQLException, InterruptedException {
-        super.testNominalUpsert(false);
+        super.testNominalInsert(false);
     }
 
     // @Test
