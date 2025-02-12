@@ -1,7 +1,5 @@
 package com.snowflake.kafka.connector.templating;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
@@ -10,6 +8,7 @@ import com.github.mustachejava.MustacheFactory;
 import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
 import com.snowflake.kafka.connector.Utils;
 import com.snowflake.kafka.connector.internal.SnowflakeConnectionService;
+
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
@@ -177,9 +176,7 @@ public class StreamkapQueryTemplate {
                     String topicName = entry.getKey();
                     try {
                         String tableName = Utils.generateValidName(topicName, topic2table);
-                        Mustache tableNameTemplate = getTableNameTemplate();
-                        Map<String, Object> data = getCreateSqlData();
-                        String dtTableName = executeTemplate(tableName, entry.getValue(), tableNameTemplate, data);
+                        String dtTableName = getDtTableName(tableName, entry.getValue());
     
                         if (!checkIfDynamicTableExists(dtTableName, conn)) {
                             if (applyCreateScriptIfAvailable(tableName, entry.getValue(), dtTableName, conn)) {
@@ -199,6 +196,18 @@ public class StreamkapQueryTemplate {
         }
     }
 
+    private String getDtTableName(String tableName, SinkRecord record) {
+        Mustache tableNameTemplate = getTableNameTemplate();
+        Map<String, Object> data = getCreateSqlData();
+        String dtTableName = executeTemplate(tableName, record, tableNameTemplate, data);
+        return dtTableName;
+    }
+
+    public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, SnowflakeConnectionService conn) {
+        String dtTableName = getDtTableName(tableName, record);
+        return applyCreateScriptIfAvailable(tableName, record, dtTableName, conn);
+    }
+    
     /**
      * Applies create script if available for the given table name and record.
      *
@@ -238,10 +247,15 @@ public class StreamkapQueryTemplate {
         return scriptAppliedSuccessfully;
     }
 
-    private String executeTemplate(String tableName, SinkRecord sinkRecord, Mustache mustacheTemplate, Map<String, Object> data) throws IOException {
+    private String executeTemplate(String tableName, SinkRecord sinkRecord, Mustache mustacheTemplate, Map<String, Object> data) {
         StringWriter writer = new StringWriter();
         Map<String, Object> fieldValues = getRecordDataAsMap(tableName.toUpperCase(), sinkRecord, data);
-        mustacheTemplate.execute(writer, fieldValues).flush();
+        try {
+            mustacheTemplate.execute(writer, fieldValues).flush();
+        } catch (IOException e) {
+            LOGGER.warn("Could not execute template for table {}.", tableName, e);
+            return mustacheTemplate.toString();
+        }
         return writer.toString();
     }
 
