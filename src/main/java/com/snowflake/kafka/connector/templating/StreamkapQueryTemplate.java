@@ -137,16 +137,16 @@ public class StreamkapQueryTemplate {
         return (topicConfig != null && topicConfig.getCreateTemplate() != null ? true : createSqlTemplate !=null);
     }
 
-    public boolean checkIfDynamicTableExists(String tableName, SnowflakeConnectionService conn) {
+    public boolean checkIfDynamicTableExists(String dtTableName, SnowflakeConnectionService conn) {
         boolean tableExists = false;
         try {
             Connection con = conn.getConnection();
             try (Statement stmt = con.createStatement()) {
-                String statement = "DESC DYNAMIC TABLE "+ tableName + "_DT";
+                String statement = "DESC DYNAMIC TABLE "+ dtTableName;
                 stmt.executeQuery(statement);
                 tableExists = true;
             } catch (Exception e) {
-                LOGGER.warn("Dynamic table for table {}, doesn't exist.", tableName, e);
+                LOGGER.warn("Dynamic table for table {}, doesn't exist.", dtTableName, e);
             }
         } catch (Exception e) {
             LOGGER.error("Error getting connection", e);
@@ -177,8 +177,12 @@ public class StreamkapQueryTemplate {
                     String topicName = entry.getKey();
                     try {
                         String tableName = Utils.generateValidName(topicName, topic2table);
-                        if (!checkIfDynamicTableExists(tableName, conn)) {
-                            if (applyCreateScriptIfAvailable(tableName, entry.getValue(), conn)) {
+                        Mustache tableNameTemplate = getTableNameTemplate();
+                        Map<String, Object> data = getCreateSqlData();
+                        String dtTableName = executeTemplate(tableName, entry.getValue(), tableNameTemplate, data);
+    
+                        if (!checkIfDynamicTableExists(dtTableName, conn)) {
+                            if (applyCreateScriptIfAvailable(tableName, entry.getValue(), dtTableName, conn)) {
                                 recordByTopic.remove(topicName);
                                 processedTopics.putIfAbsent(topicName, true);
                             }
@@ -202,7 +206,7 @@ public class StreamkapQueryTemplate {
      * @param record    the SinkRecord
      * @param conn      the SnowflakeConnectionService
      */
-    public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, SnowflakeConnectionService conn) {
+    public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, String dtTableName, SnowflakeConnectionService conn) {
         boolean scriptAppliedSuccessfully = false;
         tableName = tableName.replaceAll("\"","");
         if (topicHasCreateTemplate(record.topic())
@@ -211,9 +215,7 @@ public class StreamkapQueryTemplate {
             try {
                 Connection con = conn.getConnection();
                 try (Statement stmt = con.createStatement()) {
-                    Mustache tableNameTemplate = getTableNameTemplate();
                     Map<String, Object> data = getCreateSqlData();
-                    String dtTableName = generateSqlFromTemplate(tableName, record, tableNameTemplate, data).get(0);
                     Map<String, Object> dataForTable = new ConcurrentHashMap<>(data);
                     dataForTable.put("dynamicTableName", dtTableName);
                     Mustache template = getCreateTemplate(record.topic());
