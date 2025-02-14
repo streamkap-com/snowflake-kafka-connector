@@ -207,7 +207,7 @@ public class StreamkapQueryTemplate {
         String dtTableName = getDtTableName(tableName, record);
         return applyCreateScriptIfAvailable(tableName, record, dtTableName, conn);
     }
-    
+
     /**
      * Applies create script if available for the given table name and record.
      *
@@ -215,7 +215,7 @@ public class StreamkapQueryTemplate {
      * @param record    the SinkRecord
      * @param conn      the SnowflakeConnectionService
      */
-    public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, String dtTableName, SnowflakeConnectionService conn) {
+	public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, String dtTableName, SnowflakeConnectionService conn) {
         boolean scriptAppliedSuccessfully = false;
         tableName = tableName.replaceAll("\"","");
         if (topicHasCreateTemplate(record.topic())
@@ -226,6 +226,11 @@ public class StreamkapQueryTemplate {
                 try (Statement stmt = con.createStatement()) {
                     Map<String, Object> data = getCreateSqlData();
                     Map<String, Object> dataForTable = new ConcurrentHashMap<>(data);
+                    if (data.containsKey("TABLE_DATA") && data.get("TABLE_DATA") instanceof Map) {
+                        @SuppressWarnings("unchecked")
+						Map<String, Object> tableSpecificProps = (Map<String, Object>) data.get("TABLE_DATA");
+                        dataForTable.putAll(tableSpecificProps);
+                    }
                     dataForTable.put("dynamicTableName", dtTableName);
                     Mustache template = getCreateTemplate(record.topic());
                     List<String> statements = generateSqlFromTemplate(tableName, record, template, dataForTable);
