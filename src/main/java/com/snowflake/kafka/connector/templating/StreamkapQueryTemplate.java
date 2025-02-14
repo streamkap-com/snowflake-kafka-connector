@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 public class StreamkapQueryTemplate {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamkapQueryTemplate.class);
+    private static final String DYNAMIC_TABLE_NAME_FIELD = "dynamicTableName";
     private final ConcurrentMap<String, TopicConfig> allTopicConfigs = new ConcurrentHashMap<>();
     private Mustache createSqlTemplate = null;
     private Mustache tableNameTemplate = null;
@@ -176,10 +177,11 @@ public class StreamkapQueryTemplate {
                     String topicName = entry.getKey();
                     try {
                         String tableName = Utils.generateValidName(topicName, topic2table);
-                        String dtTableName = getDtTableName(tableName, entry.getValue());
-    
+
+                        Map<String, Object> dataForTable = getCreateSqlDataForTable(tableName, entry.getValue());
+                        String dtTableName = (String) dataForTable.get(DYNAMIC_TABLE_NAME_FIELD);
                         if (!checkIfDynamicTableExists(dtTableName, conn)) {
-                            if (applyCreateScriptIfAvailable(tableName, entry.getValue(), dtTableName, conn)) {
+                            if (applyCreateScriptIfAvailable(tableName, entry.getValue(), conn, dataForTable)) {
                                 recordByTopic.remove(topicName);
                                 processedTopics.putIfAbsent(topicName, true);
                             }
@@ -196,16 +198,29 @@ public class StreamkapQueryTemplate {
         }
     }
 
-    private String getDtTableName(String tableName, SinkRecord record) {
-        Mustache tableNameTemplate = getTableNameTemplate();
+    private Map<String, Object> getCreateSqlDataForTable(String tableName, SinkRecord record) {
         Map<String, Object> data = getCreateSqlData();
-        String dtTableName = executeTemplate(tableName, record, tableNameTemplate, data);
-        return dtTableName;
+        Map<String, Object> dataForCurrentTable = new ConcurrentHashMap<>(data);
+        if (data.containsKey("TABLE_DATA") && data.get("TABLE_DATA") instanceof Map) {
+            @SuppressWarnings("unchecked")
+			Map<String, Object> tableSpecificProps = (Map<String, Object>)data.get("TABLE_DATA"); 
+
+            if (tableSpecificProps.containsKey(tableName.toUpperCase()) && tableSpecificProps.get(tableName.toUpperCase()) instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> propsForCurrentTable = (Map<String, Object>) tableSpecificProps.get(tableName.toUpperCase());
+                dataForCurrentTable.putAll(propsForCurrentTable);
+            }
+        }
+
+        Mustache tableNameTemplate = getTableNameTemplate();
+        String dtTableName = executeTemplate(tableName, record, tableNameTemplate, dataForCurrentTable);
+        dataForCurrentTable.put(DYNAMIC_TABLE_NAME_FIELD, dtTableName);
+
+        return dataForCurrentTable;
     }
 
     public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, SnowflakeConnectionService conn) {
-        String dtTableName = getDtTableName(tableName, record);
-        return applyCreateScriptIfAvailable(tableName, record, dtTableName, conn);
+        return applyCreateScriptIfAvailable(tableName, record, conn, getCreateSqlDataForTable(tableName, record));
     }
 
     /**
@@ -215,7 +230,7 @@ public class StreamkapQueryTemplate {
      * @param record    the SinkRecord
      * @param conn      the SnowflakeConnectionService
      */
-	public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, String dtTableName, SnowflakeConnectionService conn) {
+	public boolean applyCreateScriptIfAvailable(String tableName, SinkRecord record, SnowflakeConnectionService conn, Map<String, Object> dataForTable) {
         boolean scriptAppliedSuccessfully = false;
         tableName = tableName.replaceAll("\"","");
         if (topicHasCreateTemplate(record.topic())
@@ -224,14 +239,6 @@ public class StreamkapQueryTemplate {
             try {
                 Connection con = conn.getConnection();
                 try (Statement stmt = con.createStatement()) {
-                    Map<String, Object> data = getCreateSqlData();
-                    Map<String, Object> dataForTable = new ConcurrentHashMap<>(data);
-                    if (data.containsKey("TABLE_DATA") && data.get("TABLE_DATA") instanceof Map) {
-                        @SuppressWarnings("unchecked")
-						Map<String, Object> tableSpecificProps = (Map<String, Object>) data.get("TABLE_DATA");
-                        dataForTable.putAll(tableSpecificProps);
-                    }
-                    dataForTable.put("dynamicTableName", dtTableName);
                     Mustache template = getCreateTemplate(record.topic());
                     List<String> statements = generateSqlFromTemplate(tableName, record, template, dataForTable);
                     applyDdlStatements(con, statements);
@@ -330,6 +337,15 @@ public class StreamkapQueryTemplate {
         Map<String, Object> result;
         try {
             result = new ObjectMapper().readValue(createSqlData, HashMap.class);
+            if (result.containsKey("TABLE_DATA") && result.get("TABLE_DATA") instanceof Map) {
+                Map<String, Object> tableData = new HashMap<>();
+                //convert TABLE_DATA keys to uppercase
+                for (Map.Entry<String, Object> entry : ((Map<String, Object>) result.get("TABLE_DATA")).entrySet()) {
+                    tableData.put(entry.getKey().toUpperCase(), entry.getValue());
+                }
+                result.put("TABLE_DATA", tableData);
+            }
+            
             this.createSqlData = Collections.unmodifiableMap(result);
         } catch (Exception e) {
             throw new RuntimeException("Invalid create sql data " + createSqlData, e);
