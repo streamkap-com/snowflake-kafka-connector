@@ -413,7 +413,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
           == null) // Any schema is valid and we don't have a default, so treat this as an optional
         // schema
         return null;
-      if (schema.defaultValue() != null)
+      if (!schema.isOptional() && schema.defaultValue() != null)
         return convertToJson(schema, schema.defaultValue(), isStreaming);
       if (schema.isOptional()) return JsonNodeFactory.instance.nullNode();
       throw SnowflakeErrors.ERROR_5015.getException(
@@ -554,7 +554,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
               throw SnowflakeErrors.ERROR_5015.getException("Mismatching schema.");
             ObjectNode obj = JsonNodeFactory.instance.objectNode();
             for (Field field : schema.fields()) {
-              obj.set(field.name(), convertToJson(field.schema(), struct.get(field), isStreaming));
+              obj.set(field.name(), convertToJson(field.schema(), struct.getWithoutDefault(field.name()), isStreaming));
             }
             return obj;
           }
