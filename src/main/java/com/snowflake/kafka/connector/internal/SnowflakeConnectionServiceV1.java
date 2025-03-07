@@ -94,6 +94,19 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     LOGGER.info("initialized the snowflake connection");
   }
 
+  private String getFullyQualifiedTableName(String tableName){
+    if (tableName.contains(".")) return tableName;
+
+    String fullyQualifiedTableName =
+            jdbcProperties.getProperty(InternalUtils.JDBC_DATABASE)
+                    + "."
+                    + jdbcProperties.getProperty(InternalUtils.JDBC_SCHEMA)
+                    + "."
+                    + tableName;
+    return fullyQualifiedTableName;
+  }
+
+
   @Override
   public void createSchema(final String schemaName) {
     checkConnection();
@@ -118,6 +131,8 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
     String query;
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
+
     if (overwrite) {
       query =
           "create or replace table identifier(?) (record_metadata "
@@ -129,14 +144,14 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     }
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
       throw SnowflakeErrors.ERROR_2007.getException(e);
     }
 
-    LOGGER.info("create table {}", tableName);
+    LOGGER.info("create table {}", fullyQualifiedTableName);
   }
 
   @Override
@@ -148,13 +163,14 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   public void createTableWithOnlyMetadataColumn(final String tableName, final boolean autoSchematization) {
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
     String createTableQuery =
         "create table if not exists identifier(?) (record_metadata variant comment 'created by"
             + " automatic table creation from Snowflake Kafka Connector')";
 
     try {
       PreparedStatement stmt = conn.prepareStatement(createTableQuery);
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -167,7 +183,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
           "alter table identifier(?) set ENABLE_SCHEMA_EVOLUTION = true";
       try {
         PreparedStatement stmt = conn.prepareStatement(enableSchemaEvolutionQuery);
-        stmt.setString(1, tableName);
+        stmt.setString(1, fullyQualifiedTableName);
         stmt.executeQuery();
       } catch (SQLException e) {
         // Skip the error given that schema evolution is still under PrPr
@@ -271,16 +287,18 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   public boolean tableExist(final String tableName) {
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
+
     String query = "desc table identifier(?)";
     PreparedStatement stmt = null;
     boolean exist;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       stmt.execute();
       exist = true;
     } catch (Exception e) {
-      LOGGER.debug("table {} doesn't exist", tableName);
+      LOGGER.debug("table {} doesn't exist", fullyQualifiedTableName);
       exist = false;
     } finally {
       if (stmt != null) {
@@ -352,13 +370,14 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   public boolean isTableCompatible(final String tableName) {
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
     String query = "desc table identifier(?)";
     PreparedStatement stmt = null;
     ResultSet result = null;
     boolean compatible;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       result = stmt.executeQuery();
       boolean hasMeta = false;
       boolean hasContent = false;
@@ -383,7 +402,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
       }
       compatible = hasMeta && hasContent && allNullable;
     } catch (SQLException e) {
-      LOGGER.debug("Table {} doesn't exist. Exception {}", tableName, e.getStackTrace());
+      LOGGER.debug("Table {} doesn't exist. Exception {}", fullyQualifiedTableName, e.getStackTrace());
       compatible = false;
     } finally {
       try {
@@ -402,7 +421,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
         e.printStackTrace();
       }
     }
-    LOGGER.info("Table {} compatibility is {}", tableName, compatible);
+    LOGGER.info("Table {} compatibility is {}", fullyQualifiedTableName, compatible);
     return compatible;
   }
 
@@ -410,6 +429,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   public void appendMetaColIfNotExist(final String tableName) {
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
     String query = "desc table identifier(?)";
     PreparedStatement stmt = null;
     ResultSet result = null;
@@ -417,7 +437,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     boolean isVariant = false;
     try {
       stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       result = stmt.executeQuery();
       while (result.next()) {
         // The result schema is row idx | column name | data type | kind | null? | ...
@@ -430,21 +450,21 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
         }
       }
     } catch (SQLException e) {
-      throw SnowflakeErrors.ERROR_2014.getException("table name: " + tableName);
+      throw SnowflakeErrors.ERROR_2014.getException("table name: " + fullyQualifiedTableName);
     }
     try {
       if (!hasMeta) {
         String metaQuery = "alter table identifier(?) add RECORD_METADATA VARIANT";
         stmt = conn.prepareStatement(metaQuery);
-        stmt.setString(1, tableName);
+        stmt.setString(1, fullyQualifiedTableName);
         stmt.executeQuery();
       } else {
         if (!isVariant) {
-          throw SnowflakeErrors.ERROR_2012.getException("table name: " + tableName);
+          throw SnowflakeErrors.ERROR_2012.getException("table name: " + fullyQualifiedTableName);
         }
       }
     } catch (SQLException e) {
-      throw SnowflakeErrors.ERROR_2013.getException("table name: " + tableName);
+      throw SnowflakeErrors.ERROR_2013.getException("table name: " + fullyQualifiedTableName);
     }
   }
 
@@ -461,6 +481,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     LOGGER.info("Checking schema evolution permission for table {}", tableName);
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
     String query = "show grants on table identifier(?)";
     List<String> schemaEvolutionAllowedPrivilegeList =
         Arrays.asList("EVOLVE SCHEMA", "ALL", "OWNERSHIP");
@@ -470,7 +491,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     String myRole = SchematizationUtils.formatName(role);
     try {
       PreparedStatement stmt = conn.prepareStatement(query);
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       result = stmt.executeQuery();
       while (result.next()) {
         if (!result.getString("grantee_name").equals(myRole)) {
@@ -525,6 +546,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   public void appendColumnsToTable(String tableName, Map<String, ColumnInfos> columnInfosMap) {
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
     StringBuilder appendColumnQuery =
         new StringBuilder("alter table identifier(?) add column if not exists ");
     boolean first = true;
@@ -550,7 +572,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     try {
       LOGGER.info("Trying to run query: {}", appendColumnQuery.toString());
       PreparedStatement stmt = conn.prepareStatement(appendColumnQuery.toString());
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -558,7 +580,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     }
 
     logColumn.insert(0, "Following columns created for table {}:\n").append("]");
-    LOGGER.info(logColumn.toString(), tableName);
+    LOGGER.info(logColumn.toString(), fullyQualifiedTableName);
   }
 
   /**
@@ -571,6 +593,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   public void alterNonNullableColumns(String tableName, List<String> columnNames) {
     checkConnection();
     InternalUtils.assertNotEmpty("tableName", tableName);
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
     StringBuilder dropNotNullQuery = new StringBuilder("alter table identifier(?) alter ");
     boolean isFirstColumn = true;
     StringBuilder logColumn = new StringBuilder("[");
@@ -593,7 +616,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     try {
       LOGGER.info("Trying to run query: {}", dropNotNullQuery.toString());
       PreparedStatement stmt = conn.prepareStatement(dropNotNullQuery.toString());
-      stmt.setString(1, tableName);
+      stmt.setString(1, fullyQualifiedTableName);
       stmt.execute();
       stmt.close();
     } catch (SQLException e) {
@@ -603,7 +626,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     logColumn
         .insert(0, "Following columns' non-nullabilty was dropped for table {}:\n")
         .append("]");
-    LOGGER.info(logColumn.toString(), tableName);
+    LOGGER.info(logColumn.toString(), fullyQualifiedTableName);
   }
 
   @Override
