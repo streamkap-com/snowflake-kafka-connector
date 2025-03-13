@@ -1081,12 +1081,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
     InternalUtils.assertNotEmpty("tableName", tableName);
     InternalUtils.assertNotEmpty("sourceChannelName", sourceChannelName);
     InternalUtils.assertNotEmpty("destinationChannelName", destinationChannelName);
-    String fullyQualifiedTableName =
-        jdbcProperties.getProperty(InternalUtils.JDBC_DATABASE)
-            + "."
-            + jdbcProperties.getProperty(InternalUtils.JDBC_SCHEMA)
-            + "."
-            + tableName;
+    String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
     String query = "select SYSTEM$SNOWPIPE_STREAMING_MIGRATE_CHANNEL_OFFSET_TOKEN((?), (?), (?));";
 
     try {
