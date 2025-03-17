@@ -53,6 +53,8 @@ public class SchematizationUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SchematizationUtils.class);
 
+  public static final String DECIMAL_SQL_TYPE = "DECIMAL(38, 7)";
+
   /**
    * Transform the objectName to uppercase unless it is enclosed in double quotes
    *
@@ -242,7 +244,11 @@ public class SchematizationUtils {
       if (schemaName != null) {
         switch (schemaName) {
             case Decimal.LOGICAL_NAME:
-              return "DOUBLE";
+              if (kafkaType == org.apache.kafka.connect.data.Schema.Type.BYTES) {
+                return DECIMAL_SQL_TYPE;
+              } else {
+                return "DOUBLE";
+              }
             case Time.LOGICAL_NAME:
             case "io.debezium.time.MicroTime":
               return "TIME(6)";
