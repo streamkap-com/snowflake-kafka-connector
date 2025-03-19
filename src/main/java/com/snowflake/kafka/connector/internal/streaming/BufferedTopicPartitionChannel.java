@@ -684,7 +684,7 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
                   extraColNames == null ? "null" : String.join(",", extraColNames));
               SchematizationUtils.evolveSchemaIfNeeded(
                   this.conn,
-                  this.channel.getTableName(),
+                  String.join(".", this.channel.getSchemaName(), this.channel.getTableName()),
                   new ArrayList<>(nonNullableColumns),
                   extraColNames,
                   this.insertRowsStreamingBuffer.getSinkRecord(originalSinkRecordIdx),
@@ -1019,11 +1019,20 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
    * @return new channel which was fetched after open/reopen
    */
   private SnowflakeStreamingIngestChannel openChannelForTable() {
+    String sName=this.sfConnectorConfig.get(Utils.SF_SCHEMA);
+    String tName=this.tableName;
+    if(this.tableName.contains(".")){
+      String[] parts = this.tableName.split("\\.");
+      if(parts.length>=2){
+        sName = parts[parts.length-2];
+        tName = parts[parts.length-1];
+      }
+    }
     OpenChannelRequest channelRequest =
         OpenChannelRequest.builder(this.channelNameFormatV1)
             .setDBName(this.sfConnectorConfig.get(Utils.SF_DATABASE))
-            .setSchemaName(this.sfConnectorConfig.get(Utils.SF_SCHEMA))
-            .setTableName(this.tableName)
+            .setSchemaName(sName)
+            .setTableName(tName)
             .setOnErrorOption(OpenChannelRequest.OnErrorOption.CONTINUE)
             .setOffsetTokenVerificationFunction(StreamingUtils.offsetTokenVerificationFunction)
             .build();
