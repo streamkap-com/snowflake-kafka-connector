@@ -35,6 +35,7 @@ import com.snowflake.kafka.connector.records.RecordService;
 import com.snowflake.kafka.connector.records.RecordServiceFactory;
 import com.snowflake.kafka.connector.records.SnowflakeJsonSchema;
 import com.snowflake.kafka.connector.records.SnowflakeRecordContent;
+import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import dev.failsafe.Failsafe;
 import dev.failsafe.Fallback;
 import dev.failsafe.RetryPolicy;
@@ -132,6 +133,7 @@ public class DirectTopicPartitionChannel implements TopicPartitionChannel {
 
   // Whether schematization has been enabled.
   private final boolean enableSchematization;
+  private final boolean autoSchematization;
 
   // Whether schema evolution could be done on this channel
   private final boolean enableSchemaEvolution;
@@ -242,8 +244,13 @@ public class DirectTopicPartitionChannel implements TopicPartitionChannel {
 
     /* Schematization related properties */
     this.enableSchematization = Utils.isSchematizationEnabled(this.sfConnectorConfig);
-
-    this.enableSchemaEvolution = this.enableSchematization && hasSchemaEvolutionPermission;
+    this.autoSchematization =
+            this.recordService.setAndGetAutoSchematizationFromConfig(sfConnectorConfig);
+    //this.enableSchemaEvolution = this.enableSchematization && hasSchemaEvolutionPermission;
+    this.enableSchemaEvolution =
+            this.enableSchematization
+                    && this.conn != null
+                    && (!autoSchematization || hasSchemaEvolutionPermission);
     this.schemaEvolutionService = schemaEvolutionService;
 
     if (isEnableChannelOffsetMigration(sfConnectorConfig)) {
@@ -537,7 +544,9 @@ public class DirectTopicPartitionChannel implements TopicPartitionChannel {
       if (schemaEvolutionTargetItems.hasDataForSchemaEvolution()) {
         try {
           schemaEvolutionService.evolveSchemaIfNeeded(
-              schemaEvolutionTargetItems, kafkaSinkRecord, channel.getTableSchema());
+              schemaEvolutionTargetItems, kafkaSinkRecord,
+                  String.join(".",this.channel.getSchemaName(), this.channel.getTableName()),
+                  StreamkapQueryTemplate.buildStreamkapQueryTemplateFromConfig(this.sfConnectorConfig));
           streamingApiFallbackSupplier(
               StreamingApiFallbackInvoker.INSERT_ROWS_SCHEMA_EVOLUTION_FALLBACK);
         } catch (SnowflakeKafkaConnectorException e) {
@@ -820,11 +829,20 @@ public class DirectTopicPartitionChannel implements TopicPartitionChannel {
    * @return new channel which was fetched after open/reopen
    */
   private SnowflakeStreamingIngestChannel openChannelForTable() {
+    String sName=this.sfConnectorConfig.get(Utils.SF_SCHEMA);
+    String tName=this.tableName;
+    if(this.tableName.contains(".")){
+      String[] parts = this.tableName.split("\\.");
+      if(parts.length>=2){
+        sName = parts[parts.length-2];
+        tName = parts[parts.length-1];
+      }
+    }
     OpenChannelRequest channelRequest =
         OpenChannelRequest.builder(this.channelNameFormatV1)
             .setDBName(this.sfConnectorConfig.get(Utils.SF_DATABASE))
-            .setSchemaName(this.sfConnectorConfig.get(Utils.SF_SCHEMA))
-            .setTableName(this.tableName)
+            .setSchemaName(sName)
+            .setTableName(tName)
             .setOnErrorOption(OpenChannelRequest.OnErrorOption.CONTINUE)
             .setOffsetTokenVerificationFunction(StreamingUtils.offsetTokenVerificationFunction)
             .build();

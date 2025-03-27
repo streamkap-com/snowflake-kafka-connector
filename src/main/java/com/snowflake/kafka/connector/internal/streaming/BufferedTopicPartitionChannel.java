@@ -35,6 +35,7 @@ import com.snowflake.kafka.connector.records.RecordService;
 import com.snowflake.kafka.connector.records.RecordServiceFactory;
 import com.snowflake.kafka.connector.records.SnowflakeJsonSchema;
 import com.snowflake.kafka.connector.records.SnowflakeRecordContent;
+import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import dev.failsafe.Failsafe;
 import dev.failsafe.Fallback;
 import dev.failsafe.RetryPolicy;
@@ -163,6 +164,7 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
 
   // Whether schematization has been enabled.
   private final boolean enableSchematization;
+  private final boolean autoSchematization;
 
   // Whether schema evolution could be done on this channel
   private final boolean enableSchemaEvolution;
@@ -281,8 +283,12 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
 
     /* Schematization related properties */
     this.enableSchematization = Utils.isSchematizationEnabled(this.sfConnectorConfig);
-
-    this.enableSchemaEvolution = this.enableSchematization && hasSchemaEvolutionPermission;
+    this.autoSchematization =
+        this.recordService.setAndGetAutoSchematizationFromConfig(sfConnectorConfig);
+    this.enableSchemaEvolution =
+        this.enableSchematization
+            && this.conn != null
+            && (!autoSchematization || hasSchemaEvolutionPermission);
     this.schemaEvolutionService = schemaEvolutionService;
 
     if (isEnableChannelOffsetMigration(sfConnectorConfig)) {
@@ -602,7 +608,7 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
                 buffer,
                 this.enableSchemaEvolution,
                 this.schemaEvolutionService,
-                this.insertErrorMapper));
+                this.insertErrorMapper, this.sfConnectorConfig));
   }
 
   /** Invokes the API given the channel and streaming Buffer. */
@@ -621,18 +627,21 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
     private final SchemaEvolutionService schemaEvolutionService;
 
     private final InsertErrorMapper insertErrorMapper;
+    private final Map<String, String> sfConnectorConfig;
 
     private InsertRowsApiResponseSupplier(
         SnowflakeStreamingIngestChannel channelForInsertRows,
         StreamingBuffer insertRowsStreamingBuffer,
         boolean enableSchemaEvolution,
         SchemaEvolutionService schemaEvolutionService,
-        InsertErrorMapper insertErrorMapper) {
+        InsertErrorMapper insertErrorMapper,
+        Map<String, String> sfConnectorConfig) {
       this.channel = channelForInsertRows;
       this.insertRowsStreamingBuffer = insertRowsStreamingBuffer;
       this.enableSchemaEvolution = enableSchemaEvolution;
       this.schemaEvolutionService = schemaEvolutionService;
       this.insertErrorMapper = insertErrorMapper;
+      this.sfConnectorConfig = sfConnectorConfig;
     }
 
     @Override
@@ -686,7 +695,7 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
             } else {
               LOGGER.info("Triggering schema evolution. Items: {}", schemaEvolutionTargetItems);
               schemaEvolutionService.evolveSchemaIfNeeded(
-                  schemaEvolutionTargetItems, originalSinkRecord, channel.getTableSchema());
+                  schemaEvolutionTargetItems, originalSinkRecord, String.join(".", this.channel.getSchemaName(), this.channel.getTableName()));
               // Offset reset needed since it's possible that we successfully ingested partial batch
               needToResetOffset = true;
               break;
@@ -1017,11 +1026,20 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
    * @return new channel which was fetched after open/reopen
    */
   private SnowflakeStreamingIngestChannel openChannelForTable() {
+    String sName=this.sfConnectorConfig.get(Utils.SF_SCHEMA);
+    String tName=this.tableName;
+    if(this.tableName.contains(".")){
+      String[] parts = this.tableName.split("\\.");
+      if(parts.length>=2){
+        sName = parts[parts.length-2];
+        tName = parts[parts.length-1];
+      }
+    }
     OpenChannelRequest channelRequest =
         OpenChannelRequest.builder(this.channelNameFormatV1)
             .setDBName(this.sfConnectorConfig.get(Utils.SF_DATABASE))
-            .setSchemaName(this.sfConnectorConfig.get(Utils.SF_SCHEMA))
-            .setTableName(this.tableName)
+            .setSchemaName(sName)
+            .setTableName(tName)
             .setOnErrorOption(OpenChannelRequest.OnErrorOption.CONTINUE)
             .setOffsetTokenVerificationFunction(StreamingUtils.offsetTokenVerificationFunction)
             .build();

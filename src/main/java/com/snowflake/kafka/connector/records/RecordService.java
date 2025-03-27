@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.DoubleNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
 import com.snowflake.kafka.connector.internal.KCLogger;
@@ -31,7 +32,11 @@ import java.text.SimpleDateFormat;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HexFormat;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TimeZone;
 import javax.annotation.Nullable;
@@ -70,6 +75,9 @@ public class RecordService {
   static final String HEADERS = "headers";
 
   private final StreamingRecordMapper streamingRecordMapper;
+  private boolean autoSchematization = true;
+  private SnowflakeSinkConnectorConfig.BehaviorOnNullValues behaviorOnNullValues =
+      SnowflakeSinkConnectorConfig.BehaviorOnNullValues.DEFAULT;
 
   // For each task, we require a separate instance of SimpleDataFormat, since they are not
   // inherently thread safe
@@ -106,6 +114,54 @@ public class RecordService {
 
   public void setMetadataConfig(SnowflakeMetadataConfig metadataConfigIn) {
     metadataConfig = metadataConfigIn;
+  }
+
+  /**
+   * extract enableSchematization from the connector config and set the value for the recordService
+   *
+   * <p>The extracted boolean is returned for external usage.
+   *
+   * @param connectorConfig the connector config map
+   * @return a boolean indicating whether schematization is enabled
+   */
+  public boolean setAndGetEnableSchematizationFromConfig(
+      final Map<String, String> connectorConfig) {
+    if (connectorConfig.containsKey(SnowflakeSinkConnectorConfig.ENABLE_SCHEMATIZATION_CONFIG)) {
+      this.enableSchematization =
+          Boolean.parseBoolean(
+              connectorConfig.get(SnowflakeSinkConnectorConfig.ENABLE_SCHEMATIZATION_CONFIG));
+    }
+    return this.enableSchematization;
+  }
+
+/**
+ * extract autoSchematization from the connector config and set the value for the recordService
+ *
+ * <p>The extracted boolean is returned for external usage.
+ *
+ * @param connectorConfig the connector config map
+ * @return a boolean indicating whether schematization is enabled
+ */
+public boolean setAndGetAutoSchematizationFromConfig(
+    final Map<String, String> connectorConfig) {
+  if (connectorConfig.containsKey(SnowflakeSinkConnectorConfig.SCHEMATIZATION_AUTO_CONFIG)) {
+    this.autoSchematization =
+        Boolean.parseBoolean(
+            connectorConfig.get(SnowflakeSinkConnectorConfig.SCHEMATIZATION_AUTO_CONFIG));
+  }
+  return this.autoSchematization;
+}
+
+  /**
+   * Directly set the enableSchematization through param
+   *
+   * <p>This method is only for testing
+   *
+   * @param enableSchematization whether we should enable schematization or not
+   */
+  @VisibleForTesting
+  public void setEnableSchematization(final boolean enableSchematization) {
+    this.enableSchematization = enableSchematization;
   }
 
   /**
@@ -296,7 +352,7 @@ public class RecordService {
           == null) // Any schema is valid and we don't have a default, so treat this as an optional
         // schema
         return null;
-      if (schema.defaultValue() != null)
+      if (!schema.isOptional() && schema.defaultValue() != null)
         return convertToJson(schema, schema.defaultValue(), isStreaming);
       if (schema.isOptional()) return JsonNodeFactory.instance.nullNode();
       throw SnowflakeErrors.ERROR_5015.getException(
@@ -433,11 +489,11 @@ public class RecordService {
         case STRUCT:
           {
             Struct struct = (Struct) value;
-            if (struct.schema() != schema)
+            if (!struct.schema().equals(schema))
               throw SnowflakeErrors.ERROR_5015.getException("Mismatching schema.");
             ObjectNode obj = JsonNodeFactory.instance.objectNode();
             for (Field field : schema.fields()) {
-              obj.set(field.name(), convertToJson(field.schema(), struct.get(field), isStreaming));
+              obj.set(field.name(), convertToJson(field.schema(), struct.getWithoutDefault(field.name()), isStreaming));
             }
             return obj;
           }

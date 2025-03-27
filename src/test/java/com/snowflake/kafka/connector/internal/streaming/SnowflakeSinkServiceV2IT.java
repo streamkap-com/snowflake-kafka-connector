@@ -1300,7 +1300,7 @@ public class SnowflakeSinkServiceV2IT {
     JsonConverter jsonConverter = new JsonConverter();
     jsonConverter.configure(config, false);
     byte[] converted = jsonConverter.fromConnectData(topic, original.schema(), original);
-    conn.createTableWithOnlyMetadataColumn(table);
+    conn.createTableWithOnlyMetadataColumn(table, true);
 
     SchemaAndValue jsonInputValue = jsonConverter.toConnectData(topic, converted);
 
@@ -1371,7 +1371,7 @@ public class SnowflakeSinkServiceV2IT {
     JsonConverter jsonConverter = new JsonConverter();
     jsonConverter.configure(config, false);
     byte[] converted = jsonConverter.fromConnectData(topic, original.schema(), original);
-    conn.createTableWithOnlyMetadataColumn(table);
+    conn.createTableWithOnlyMetadataColumn(table, true);
     createNonNullableColumn(table, "id_int8_non_nullable_missing_value");
     createNonNullableColumn(table, "id_int8_non_nullable_null_value");
 

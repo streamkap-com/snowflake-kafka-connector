@@ -97,6 +97,9 @@ ADDITIONAL_LICENSES_MAP = {
     "org.apache.iceberg:iceberg-common": APACHE_LICENSE,
     "io.airlift:aircompressor": APACHE_LICENSE,
     "org.roaringbitmap:RoaringBitmap": APACHE_LICENSE
+    "org.yaml:snakeyaml": APACHE_LICENSE,
+    "com.github.spullara.mustache.java:compiler": APACHE_LICENSE,
+    "org.codehaus.woodstox:stax2-api": APACHE_LICENSE
 }
 
 
