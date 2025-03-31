@@ -545,7 +545,7 @@ public class DirectTopicPartitionChannel implements TopicPartitionChannel {
         try {
           schemaEvolutionService.evolveSchemaIfNeeded(
               schemaEvolutionTargetItems, kafkaSinkRecord,
-                  String.join(".",this.channel.getSchemaName(), this.channel.getTableName()),
+                  channel.getTableSchema(), //String.join(".",this.channel.getSchemaName(), this.channel.getTableName()),
                   StreamkapQueryTemplate.buildStreamkapQueryTemplateFromConfig(this.sfConnectorConfig));
           streamingApiFallbackSupplier(
               StreamingApiFallbackInvoker.INSERT_ROWS_SCHEMA_EVOLUTION_FALLBACK);

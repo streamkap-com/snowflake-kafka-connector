@@ -21,25 +21,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.DoubleNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
 import com.snowflake.kafka.connector.internal.KCLogger;
 import com.snowflake.kafka.connector.internal.SnowflakeErrors;
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.text.SimpleDateFormat;
-import java.time.Clock;
-import java.time.Instant;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HexFormat;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.TimeZone;
-import javax.annotation.Nullable;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.ConnectSchema;
 import org.apache.kafka.connect.data.Date;
@@ -52,6 +37,17 @@ import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.sink.SinkRecord;
+
+import javax.annotation.Nullable;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
+import java.util.TimeZone;
 
 /**
  * Process records output JSON format: <i>{ "meta": { "offset": 123, "topic": "topic name",
@@ -116,24 +112,6 @@ public class RecordService {
     metadataConfig = metadataConfigIn;
   }
 
-  /**
-   * extract enableSchematization from the connector config and set the value for the recordService
-   *
-   * <p>The extracted boolean is returned for external usage.
-   *
-   * @param connectorConfig the connector config map
-   * @return a boolean indicating whether schematization is enabled
-   */
-  public boolean setAndGetEnableSchematizationFromConfig(
-      final Map<String, String> connectorConfig) {
-    if (connectorConfig.containsKey(SnowflakeSinkConnectorConfig.ENABLE_SCHEMATIZATION_CONFIG)) {
-      this.enableSchematization =
-          Boolean.parseBoolean(
-              connectorConfig.get(SnowflakeSinkConnectorConfig.ENABLE_SCHEMATIZATION_CONFIG));
-    }
-    return this.enableSchematization;
-  }
-
 /**
  * extract autoSchematization from the connector config and set the value for the recordService
  *
@@ -151,18 +129,6 @@ public boolean setAndGetAutoSchematizationFromConfig(
   }
   return this.autoSchematization;
 }
-
-  /**
-   * Directly set the enableSchematization through param
-   *
-   * <p>This method is only for testing
-   *
-   * @param enableSchematization whether we should enable schematization or not
-   */
-  @VisibleForTesting
-  public void setEnableSchematization(final boolean enableSchematization) {
-    this.enableSchematization = enableSchematization;
-  }
 
   /**
    * process given SinkRecord, only support snowflake converters

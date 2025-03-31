@@ -555,7 +555,7 @@ public class Utils {
         String finalTableName = topic.replaceAll(regex, entry.getValue());
         if (Utils.isValidSnowflakeObjectIdentifier(finalTableName)) {
           topic2table.put(topic, finalTableName);
-          return finalTableName;
+          return GeneratedName.generated(finalTableName);
         }
       }
     }

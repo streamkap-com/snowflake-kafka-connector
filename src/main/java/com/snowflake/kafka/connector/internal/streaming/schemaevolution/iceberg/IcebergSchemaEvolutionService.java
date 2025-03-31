@@ -8,6 +8,8 @@ import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEv
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEvolutionTargetItems;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import net.snowflake.ingest.streaming.internal.ColumnProperties;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
@@ -38,7 +40,8 @@ public class IcebergSchemaEvolutionService implements SchemaEvolutionService {
   public void evolveSchemaIfNeeded(
       SchemaEvolutionTargetItems targetItems,
       SinkRecord record,
-      Map<String, ColumnProperties> existingSchema) {
+      Map<String, ColumnProperties> existingSchema,
+      StreamkapQueryTemplate streamkapQueryTemplate) {
     String tableName = targetItems.getTableName();
 
     Set<String> columnsToEvolve = extractColumnNames(targetItems);

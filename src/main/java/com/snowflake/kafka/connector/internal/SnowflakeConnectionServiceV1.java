@@ -663,6 +663,7 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
   private void executeStatement(String tableName, String query) {
     try {
       LOGGER.info("Trying to run query: {}", query);
+      String fullyQualifiedTableName = getFullyQualifiedTableName(tableName);
       PreparedStatement stmt = conn.prepareStatement(query);
       stmt.setString(1, fullyQualifiedTableName);
       stmt.execute();

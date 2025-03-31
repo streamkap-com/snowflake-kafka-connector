@@ -695,7 +695,8 @@ public class BufferedTopicPartitionChannel implements TopicPartitionChannel {
             } else {
               LOGGER.info("Triggering schema evolution. Items: {}", schemaEvolutionTargetItems);
               schemaEvolutionService.evolveSchemaIfNeeded(
-                  schemaEvolutionTargetItems, originalSinkRecord, String.join(".", this.channel.getSchemaName(), this.channel.getTableName()));
+                  schemaEvolutionTargetItems, originalSinkRecord, channel.getTableSchema(),
+                      StreamkapQueryTemplate.buildStreamkapQueryTemplateFromConfig(this.sfConnectorConfig));
               // Offset reset needed since it's possible that we successfully ingested partial batch
               needToResetOffset = true;
               break;
