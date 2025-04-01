@@ -100,6 +100,10 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
                 tableName),
             e);
       }
+
+      if( streamkapQueryTemplate.isApplyDynamicTableScript()) {
+        streamkapQueryTemplate.applyCreateScriptIfAvailable(tableName, record, conn);
+      }
     }
   }
 }
