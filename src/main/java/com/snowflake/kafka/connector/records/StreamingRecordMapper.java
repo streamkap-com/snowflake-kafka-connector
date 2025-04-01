@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NumericNode;
 import com.snowflake.kafka.connector.records.RecordService.SnowflakeTableRow;
+
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Map;
 
 abstract class StreamingRecordMapper {
@@ -24,9 +27,22 @@ abstract class StreamingRecordMapper {
     String value;
     if (valueNode.isTextual()) {
       value = valueNode.textValue();
+    } else if (valueNode.isBinary()) {
+      byte[] binaryValue = Base64.getDecoder().decode(valueNode.asText());
+      value = HexFormat.of().formatHex(binaryValue);
     } else if (valueNode.isNull()) {
       value = null;
-    } else {
+    }
+    //BEGIN: ENG-355/aqemia-snowflake-missing-records
+    else if (valueNode.isDouble() && valueNode.doubleValue() == Double.POSITIVE_INFINITY) {
+      value = "inf"; // corelate with net.snowflake.ingest.streaming.internal.DataValidationUtil.validateAndParseReal
+    } else if (valueNode.isDouble() && valueNode.doubleValue() == Double.NEGATIVE_INFINITY) {
+      value = "-inf";
+    } else if (valueNode.isDouble() && valueNode.doubleValue() == Double.NaN) {
+      value = "nan";
+    }
+    // END: ENG-355/aqemia-snowflake-missing-records
+    else {
       value = writeValueAsStringOrNan(valueNode);
     }
     return value;
