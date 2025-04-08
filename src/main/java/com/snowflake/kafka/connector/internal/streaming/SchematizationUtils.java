@@ -254,8 +254,9 @@ public class SchematizationUtils {
               return "TIME(6)";
             case "io.debezium.time.Time":
               return "TIME(3)";
-            case Timestamp.LOGICAL_NAME:
             case "io.debezium.time.ZonedTimestamp":
+              return "TIMESTAMP_TZ";              
+            case Timestamp.LOGICAL_NAME:
             case "io.debezium.time.ZonedTime":      // Snowflake doesn't have zoned 'time-only' data types
             case "io.debezium.time.Timestamp":
             case "io.debezium.time.MicroTimestamp":
