@@ -27,6 +27,30 @@ public class SnowflakeColumnTypeMapper extends ColumnTypeMapper {
 
   @Override
   public String mapToColumnType(Schema.Type kafkaType, String schemaName) {
+    if (schemaName != null) {
+      switch (schemaName) {
+        case Decimal.LOGICAL_NAME:
+          if (kafkaType == org.apache.kafka.connect.data.Schema.Type.BYTES) {
+            return DECIMAL_SQL_TYPE;
+          } else {
+            return "DOUBLE";
+          }
+        case Time.LOGICAL_NAME:
+        case "io.debezium.time.MicroTime":
+          return "TIME(6)";
+        case "io.debezium.time.Time":
+          return "TIME(3)";
+        case Timestamp.LOGICAL_NAME:
+        case "io.debezium.time.ZonedTimestamp":
+        case "io.debezium.time.ZonedTime":      // Snowflake doesn't have zoned 'time-only' data types
+        case "io.debezium.time.Timestamp":
+        case "io.debezium.time.MicroTimestamp":
+          return "TIMESTAMP";
+        case Date.LOGICAL_NAME:
+        case "io.debezium.time.Date":
+          return "DATE";
+      }
+    }
     switch (kafkaType) {
       case INT8:
         return "BYTEINT";
@@ -53,6 +77,9 @@ public class SnowflakeColumnTypeMapper extends ColumnTypeMapper {
       case BOOLEAN:
         return "BOOLEAN";
       case STRING:
+        if (schemaName != null && schemaName.equals("io.debezium.data.Json")) {
+          return "VARIANT";
+        }
         return "VARCHAR";
       case BYTES:
         if (Decimal.LOGICAL_NAME.equals(schemaName)) {

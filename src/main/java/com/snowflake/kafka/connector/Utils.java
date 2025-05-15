@@ -130,6 +130,17 @@ public class Utils {
   public static final String GET_EXCEPTION_MISSING_MESSAGE = "missing exception message";
   public static final String GET_EXCEPTION_MISSING_CAUSE = "missing exception cause";
 
+  /* For Streamkap Template */
+  public static final String TARGET_LAG_CONF = "dynamic.table.target.lag";
+  public static final String CLEANUP_TASK_SCHEDULE_CONF = "cleanup.task.schedule";
+  public static final String CREATE_SQL_EXECUTE_CONF = "create.sql.execute";
+  public static final String SQL_DT_TABLE_NAME_CONF = "sql.table.name";
+  public static final String CREATE_SQL_DATA_CONF = "create.sql.data";
+  public static final String TOPICS_MAP_CONF = "topics.config.map";
+  public static final String SCHEMA_CHANGE_CHECK_MS = "schema.changes.check.interval.ms";
+  public static final String APPLY_DYNAMIC_TABLE_SCRIPT_CONF = "apply.dynamic.table.script";
+  public static final String CREATE_SCHEMA_AUTO = "create.schema.auto";
+
   private static final KCLogger LOGGER = new KCLogger(Utils.class.getName());
 
   /**
@@ -537,6 +548,18 @@ public class Utils {
     if (Utils.isValidSnowflakeObjectIdentifier(topic)) {
       return GeneratedName.generated(topic);
     }
+
+    for (Map.Entry<String, String> entry : topic2table.entrySet()) {
+      if (entry.getKey().startsWith(TOPIC_MATCHER_PREFIX)) {
+        String regex = entry.getKey().replaceFirst(TOPIC_MATCHER_PREFIX, "");
+        String finalTableName = topic.replaceAll(regex, entry.getValue());
+        if (Utils.isValidSnowflakeObjectIdentifier(finalTableName)) {
+          topic2table.put(topic, finalTableName);
+          return GeneratedName.generated(finalTableName);
+        }
+      }
+    }
+
     int hash = Math.abs(topic.hashCode());
 
     StringBuilder result = new StringBuilder();
@@ -567,6 +590,7 @@ public class Utils {
     return GeneratedName.generated(result.toString());
   }
 
+  public static String TOPIC_MATCHER_PREFIX = "REGEX_MATCHER>";
   public static Map<String, String> parseTopicToTableMap(String input) {
     Map<String, String> topic2Table = new HashMap<>();
     boolean isInvalid = false;
@@ -582,13 +606,15 @@ public class Utils {
       String topic = tt[0].trim();
       String table = tt[1].trim();
 
-      if (!isValidSnowflakeTableName(table)) {
-        LOGGER.error(
-            "table name {} should have at least 2 "
-                + "characters, start with _a-zA-Z, and only contains "
-                + "_$a-zA-z0-9",
-            table);
-        isInvalid = true;
+      if (!topic.startsWith(TOPIC_MATCHER_PREFIX)) {
+        if (!isValidSnowflakeTableName(table)) {
+          LOGGER.error(
+              "table name {} should have at least 2 "
+                  + "characters, start with _a-zA-Z, and only contains "
+                  + "_$a-zA-z0-9",
+              table);
+          isInvalid = true;
+        }
       }
 
       if (topic2Table.containsKey(topic)) {

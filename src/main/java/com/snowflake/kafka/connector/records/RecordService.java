@@ -25,16 +25,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
 import com.snowflake.kafka.connector.internal.KCLogger;
 import com.snowflake.kafka.connector.internal.SnowflakeErrors;
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.text.SimpleDateFormat;
-import java.time.Clock;
-import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
-import java.util.TimeZone;
-import javax.annotation.Nullable;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.ConnectSchema;
 import org.apache.kafka.connect.data.Date;
@@ -47,6 +37,17 @@ import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.header.Header;
 import org.apache.kafka.connect.header.Headers;
 import org.apache.kafka.connect.sink.SinkRecord;
+
+import javax.annotation.Nullable;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
+import java.util.TimeZone;
 
 /**
  * Process records output JSON format: <i>{ "meta": { "offset": 123, "topic": "topic name",
@@ -70,6 +71,9 @@ public class RecordService {
   static final String HEADERS = "headers";
 
   private final StreamingRecordMapper streamingRecordMapper;
+  private boolean autoSchematization = true;
+  private SnowflakeSinkConnectorConfig.BehaviorOnNullValues behaviorOnNullValues =
+      SnowflakeSinkConnectorConfig.BehaviorOnNullValues.DEFAULT;
 
   // For each task, we require a separate instance of SimpleDataFormat, since they are not
   // inherently thread safe
@@ -107,6 +111,24 @@ public class RecordService {
   public void setMetadataConfig(SnowflakeMetadataConfig metadataConfigIn) {
     metadataConfig = metadataConfigIn;
   }
+
+/**
+ * extract autoSchematization from the connector config and set the value for the recordService
+ *
+ * <p>The extracted boolean is returned for external usage.
+ *
+ * @param connectorConfig the connector config map
+ * @return a boolean indicating whether schematization is enabled
+ */
+public boolean setAndGetAutoSchematizationFromConfig(
+    final Map<String, String> connectorConfig) {
+  if (connectorConfig.containsKey(SnowflakeSinkConnectorConfig.SCHEMATIZATION_AUTO_CONFIG)) {
+    this.autoSchematization =
+        Boolean.parseBoolean(
+            connectorConfig.get(SnowflakeSinkConnectorConfig.SCHEMATIZATION_AUTO_CONFIG));
+  }
+  return this.autoSchematization;
+}
 
   /**
    * process given SinkRecord, only support snowflake converters
@@ -296,7 +318,7 @@ public class RecordService {
           == null) // Any schema is valid and we don't have a default, so treat this as an optional
         // schema
         return null;
-      if (schema.defaultValue() != null)
+      if (!schema.isOptional() && schema.defaultValue() != null)
         return convertToJson(schema, schema.defaultValue(), isStreaming);
       if (schema.isOptional()) return JsonNodeFactory.instance.nullNode();
       throw SnowflakeErrors.ERROR_5015.getException(
@@ -433,11 +455,11 @@ public class RecordService {
         case STRUCT:
           {
             Struct struct = (Struct) value;
-            if (struct.schema() != schema)
+            if (!struct.schema().equals(schema))
               throw SnowflakeErrors.ERROR_5015.getException("Mismatching schema.");
             ObjectNode obj = JsonNodeFactory.instance.objectNode();
             for (Field field : schema.fields()) {
-              obj.set(field.name(), convertToJson(field.schema(), struct.get(field), isStreaming));
+              obj.set(field.name(), convertToJson(field.schema(), struct.getWithoutDefault(field.name()), isStreaming));
             }
             return obj;
           }

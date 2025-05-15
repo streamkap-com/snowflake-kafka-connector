@@ -28,6 +28,7 @@ import com.snowflake.kafka.connector.internal.SnowflakeSinkService;
 import com.snowflake.kafka.connector.internal.SnowflakeSinkServiceFactory;
 import com.snowflake.kafka.connector.internal.streaming.IngestionMethodConfig;
 import com.snowflake.kafka.connector.records.SnowflakeMetadataConfig;
+import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -89,6 +90,8 @@ public class SnowflakeSinkTask extends SinkTask {
   private long taskStartTime;
 
   private IngestionMethodConfig ingestionMethodConfig;
+
+  private StreamkapQueryTemplate streamkapQueryTemplate = new StreamkapQueryTemplate();
 
   private final SnowflakeSinkTaskAuthorizationExceptionTracker authorizationExceptionTracker =
       new SnowflakeSinkTaskAuthorizationExceptionTracker();
@@ -233,10 +236,22 @@ public class SnowflakeSinkTask extends SinkTask {
             .setSinkTaskContext(this.context)
             .build();
 
+    if(Boolean.parseBoolean(parsedConfig.getOrDefault(Utils.CREATE_SCHEMA_AUTO,"false"))) {
+      createSchemaIfNotExists(getConnection(),
+              parsedConfig.get(SnowflakeSinkConnectorConfig.SNOWFLAKE_SCHEMA));
+    }
+    this.streamkapQueryTemplate = StreamkapQueryTemplate.buildStreamkapQueryTemplateFromConfig(parsedConfig);
+
     DYNAMIC_LOGGER.info(
         "task started, execution time: {} milliseconds",
         this.taskConfigId,
         getDurationFromStartMs(this.taskStartTime));
+  }
+
+  private void createSchemaIfNotExists(SnowflakeConnectionService con, String schemaName){
+      if(!con.schemaExist(schemaName)) {
+        con.createSchema(schemaName);
+      }
   }
 
   /**
@@ -311,6 +326,8 @@ public class SnowflakeSinkTask extends SinkTask {
     final long startTime = System.currentTimeMillis();
 
     getSink().insert(records);
+
+    streamkapQueryTemplate.checkSchemaChanges(records, this.topic2table, this.conn);
 
     logWarningForPutAndPrecommit(
         startTime, Utils.formatString("called PUT with {} records", recordSize), false);

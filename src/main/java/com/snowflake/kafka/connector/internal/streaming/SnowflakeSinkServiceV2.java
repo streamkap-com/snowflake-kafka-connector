@@ -96,6 +96,7 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
   // Config set in JSON
   private final Map<String, String> connectorConfig;
 
+  private boolean autoSchematization;
   private final boolean enableSchematization;
 
   private final boolean closeChannelsInParallel;
@@ -158,6 +159,8 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
     this.connectorConfig = connectorConfig;
 
     this.enableSchematization = schematizationEnabled;
+    this.autoSchematization =
+        this.recordService.setAndGetAutoSchematizationFromConfig(this.connectorConfig);
 
     this.closeChannelsInParallel =
         Optional.ofNullable(connectorConfig.get(SNOWPIPE_STREAMING_CLOSE_CHANNELS_IN_PARALLEL))
@@ -621,7 +624,7 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
       if (this.enableSchematization) {
         // Always create the table with RECORD_METADATA only and rely on schema evolution to update
         // the schema
-        this.conn.createTableWithOnlyMetadataColumn(tableName);
+        this.conn.createTableWithOnlyMetadataColumn(tableName, this.autoSchematization);
       } else {
         this.conn.createTable(tableName);
       }

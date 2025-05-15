@@ -1,6 +1,8 @@
 package com.snowflake.kafka.connector.internal.streaming.schemaevolution;
 
 import java.util.Map;
+
+import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import net.snowflake.ingest.streaming.internal.ColumnProperties;
 import org.apache.kafka.connect.sink.SinkRecord;
 
@@ -18,5 +20,5 @@ public interface SchemaEvolutionService {
   void evolveSchemaIfNeeded(
       SchemaEvolutionTargetItems targetItems,
       SinkRecord record,
-      Map<String, ColumnProperties> existingSchema);
+      Map<String, ColumnProperties> existingSchema, StreamkapQueryTemplate streamkapQueryTemplate, String targetTableName);
 }

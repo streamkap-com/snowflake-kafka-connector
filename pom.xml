@@ -48,6 +48,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <skipTests>false</skipTests>
         <skipUnitTests>${skipTests}</skipUnitTests>
+        <junit.version>5.10.0</junit.version>
         <skipIntegrationTests>${skipTests}</skipIntegrationTests>
 
         <kafka.version>3.9.0</kafka.version>
@@ -169,6 +170,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
+			        <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
                     <skipTests>${skipUnitTests}</skipTests>
                 </configuration>
             </plugin>
@@ -490,6 +492,13 @@
             <version>3.3.2</version>
         </dependency>
 
+        <!-- Templating -->
+        <dependency>
+            <groupId>com.github.spullara.mustache.java</groupId>
+            <artifactId>compiler</artifactId>
+            <version>0.9.10</version>
+        </dependency>
+
         <!--junit for unit test-->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -509,9 +518,9 @@
         </dependency>
         <!-- Optional : override the JUnit 4 API version provided by junit-vintage-engine -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+			<version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -548,13 +557,55 @@
 
         <!--Kafka JSON converter for SMT unit test-->
         <dependency>
+            <groupId>com.streamkap</groupId>
+            <artifactId>streamkap-kafka-connect-utilities</artifactId>
+            <version>0.0.1</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>connect-json</artifactId>
             <version>0.9.0.0</version>
             <scope>test</scope>
         </dependency>
-
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
         <dependency>
+            <groupId>com.streamkap</groupId>
+            <artifactId>streamkap-kafka-connect-common</artifactId>
+            <version>0.0.10</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.streamkap.kafka.connect.transforms</groupId>
+            <artifactId>multi-converter</artifactId>
+            <version>0.0.9</version>
+            <scope>test</scope>
+        </dependency>
+		<dependency>
+			<groupId>com.streamkap.kafka.connect.transforms</groupId>
+			<artifactId>auto-time-converters</artifactId>
+			<version>0.0.4</version>
+            <scope>test</scope>
+		</dependency>
+        <dependency>
+            <groupId>com.streamkap.kafka.connect.transforms</groupId>
+            <artifactId>auto-time-converters</artifactId>
+            <version>0.0.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>connect-json</artifactId>
+            <version>3.3.1</version>
+            <scope>test</scope>
+        </dependency>        <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka_2.13</artifactId>
             <version>${kafka.version}</version>

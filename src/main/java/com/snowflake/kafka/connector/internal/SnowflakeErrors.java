@@ -140,6 +140,7 @@ public enum SnowflakeErrors {
       "0031",
       "Failed to combine JDBC properties",
       "One of snowflake.jdbc.map property overrides other jdbc property"),
+  ERROR_S0031("S0031", "Empty Schema name", "Input Schema name is empty string or null"),
   ERROR_0032(
       "0032",
       "Iceberg table does not exist or is in invalid format",
@@ -216,6 +217,10 @@ public enum SnowflakeErrors {
       "2017",
       "Failed to check schema evolution permission",
       "Failed to check schema evolution permission"),
+  ERROR_S2018(
+          "2018",
+          "Failed to create schema",
+          "Failed to create schema on Snowflake, please check that you have permission to do so."),
 
   ERROR_2018(
       "2018",

@@ -97,7 +97,7 @@ public class SnowflakeURL implements URL {
     return enableJDBCTrace != null && enableJDBCTrace.toLowerCase().contains("true");
   }
 
-  String getJdbcUrl() {
+  public String getJdbcUrl() {
     return jdbcUrl;
   }
 

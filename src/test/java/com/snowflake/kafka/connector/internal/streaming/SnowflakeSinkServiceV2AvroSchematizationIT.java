@@ -99,7 +99,7 @@ public class SnowflakeSinkServiceV2AvroSchematizationIT {
   @Test
   public void testSchematizationWithTableCreationAndAvroInput() throws Exception {
     // given
-    conn.createTableWithOnlyMetadataColumn(table);
+    conn.createTableWithOnlyMetadataColumn(table, true);
     SinkRecord avroRecordValue = createSinkRecord();
     service = createService();
 
@@ -163,7 +163,7 @@ public class SnowflakeSinkServiceV2AvroSchematizationIT {
     AvroConverter avroConverter = prepareAvroConverter();
 
     byte[] converted = avroConverter.fromConnectData(topic, data.schema(), data);
-    conn.createTableWithOnlyMetadataColumn(table);
+    conn.createTableWithOnlyMetadataColumn(table, true);
 
     SchemaAndValue avroInputValue = avroConverter.toConnectData(topic, converted);
 
