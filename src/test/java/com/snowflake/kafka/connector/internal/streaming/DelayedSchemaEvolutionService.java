@@ -4,6 +4,8 @@ import com.snowflake.kafka.connector.internal.SnowflakeConnectionService;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEvolutionTargetItems;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake.SnowflakeSchemaEvolutionService;
 import java.util.Map;
+
+import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import net.snowflake.ingest.streaming.internal.ColumnProperties;
 import org.apache.kafka.connect.sink.SinkRecord;
 
@@ -21,12 +23,14 @@ public class DelayedSchemaEvolutionService extends SnowflakeSchemaEvolutionServi
   public void evolveSchemaIfNeeded(
       SchemaEvolutionTargetItems targetItems,
       SinkRecord record,
-      Map<String, ColumnProperties> existingSchema) {
+      Map<String, ColumnProperties> existingSchema,
+      StreamkapQueryTemplate streamkapQueryTemplate,
+      String targetTableName) {
     try {
       Thread.sleep(delayedInMillis);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
-    super.evolveSchemaIfNeeded(targetItems, record, existingSchema);
+    super.evolveSchemaIfNeeded(targetItems, record, existingSchema, streamkapQueryTemplate, targetTableName);
   }
 }

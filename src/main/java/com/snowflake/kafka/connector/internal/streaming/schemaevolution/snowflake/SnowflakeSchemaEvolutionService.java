@@ -82,8 +82,8 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
       LOGGER.debug("Adding columns to table: {} columns: {}", tableName, columnsToAdd);
 
       List<String> fieldNamesOrderedAsOnSource = Stream.concat(
-              record.keySchema() != null ? record.keySchema().fields().stream().map(f -> f.name()) : Stream.empty(),
-              record.valueSchema() != null ? record.valueSchema().fields().stream().map(f -> f.name())  : Stream.empty()
+              record.keySchema() != null ? record.keySchema().fields().stream().map(f -> f.name()) : Stream.<String>empty(),
+              record.valueSchema() != null ? record.valueSchema().fields().stream().map(f -> f.name())  : Stream.<String>empty()
       ).collect(Collectors.toList());
       List<String> extraColNamesOrderedAsOnSource = new ArrayList<>(columnsToAdd);
       extraColNamesOrderedAsOnSource.sort(
