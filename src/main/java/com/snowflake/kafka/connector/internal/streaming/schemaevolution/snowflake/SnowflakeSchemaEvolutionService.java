@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 
 import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import net.snowflake.ingest.streaming.internal.ColumnProperties;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,8 +56,9 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
       SchemaEvolutionTargetItems targetItems,
       SinkRecord record,
       Map<String, ColumnProperties> existingSchema,
-      StreamkapQueryTemplate streamkapQueryTemplate) {
-    String tableName = targetItems.getTableName();
+      StreamkapQueryTemplate streamkapQueryTemplate,
+      String targetTableName) {
+    String tableName = (!StringUtils.isEmpty(targetTableName) ? targetTableName : targetItems.getTableName());
     List<String> columnsToDropNullability = targetItems.getColumnsToDropNonNullability();
     // Update nullability if needed, ignore any exceptions since other task might be succeeded
     if (!columnsToDropNullability.isEmpty()) {

@@ -20,5 +20,5 @@ public interface SchemaEvolutionService {
   void evolveSchemaIfNeeded(
       SchemaEvolutionTargetItems targetItems,
       SinkRecord record,
-      Map<String, ColumnProperties> existingSchema, StreamkapQueryTemplate streamkapQueryTemplate);
+      Map<String, ColumnProperties> existingSchema, StreamkapQueryTemplate streamkapQueryTemplate, String targetTableName);
 }
