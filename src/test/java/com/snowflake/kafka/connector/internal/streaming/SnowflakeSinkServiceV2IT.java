@@ -1559,7 +1559,7 @@ public class SnowflakeSinkServiceV2IT {
     SnowflakeSinkConnectorConfig.setDefaultValues(config);
 
     // setup a table with a single field
-    conn.createTableWithOnlyMetadataColumn(table);
+    conn.createTableWithOnlyMetadataColumn(table, true);
     createNonNullableColumn(table, "id_int8");
 
     SnowflakeSinkService service =
