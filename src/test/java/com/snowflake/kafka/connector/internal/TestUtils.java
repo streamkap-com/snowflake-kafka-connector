@@ -163,6 +163,12 @@ public class TestUtils {
           + "        \"type\": \"string\",\n"
           + "        \"optional\": false,\n"
           + "        \"field\": \"gender\"\n"
+          + "      },\n"
+          + "      {\n"
+          + "        \"type\": \"string\",\n"
+          + "        \"name\": \"io.debezium.time.ZonedTimestamp\",\n"
+          + "        \"optional\": false,\n"
+          + "        \"field\": \"created_at\"\n"
           + "      }\n"
           + "    ],\n"
           + "    \"optional\": false,\n"
@@ -170,7 +176,8 @@ public class TestUtils {
           + "  },\n"
           + "  \"payload\": {\n"
           + "    \"regionid\": \"Region_5\",\n"
-          + "    \"gender\": \"FEMALE\"\n"
+          + "    \"gender\": \"FEMALE\",\n"
+          + "    \"created_at\": \"2024-06-15T12:34:56Z\"\n"
           + "  }\n"
           + "}";
   public static final String JSON_WITHOUT_SCHEMA = "{\"userid\": \"User_1\"}";

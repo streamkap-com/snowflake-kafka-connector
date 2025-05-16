@@ -1,6 +1,5 @@
 package com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.snowflake.kafka.connector.internal.SnowflakeConnectionService;
 import com.snowflake.kafka.connector.internal.SnowflakeKafkaConnectorException;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEvolutionService;
@@ -35,8 +34,7 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
     this.tableSchemaResolver = new SnowflakeTableSchemaResolver();
   }
 
-  @VisibleForTesting
-  SnowflakeSchemaEvolutionService(
+  public SnowflakeSchemaEvolutionService(
       SnowflakeConnectionService conn, TableSchemaResolver tableSchemaResolver) {
     this.conn = conn;
     this.tableSchemaResolver = tableSchemaResolver;

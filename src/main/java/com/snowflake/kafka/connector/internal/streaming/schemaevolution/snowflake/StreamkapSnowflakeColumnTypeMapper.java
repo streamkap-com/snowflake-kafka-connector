@@ -11,8 +11,10 @@ import static org.apache.kafka.connect.data.Schema.Type.INT64;
 import static org.apache.kafka.connect.data.Schema.Type.STRING;
 import static org.apache.kafka.connect.data.Schema.Type.STRUCT;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.databind.JsonNode;
-import com.snowflake.kafka.connector.internal.streaming.schemaevolution.ColumnTypeMapper;
+import com.snowflake.kafka.connector.Utils;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Schema;
@@ -21,12 +23,41 @@ import org.apache.kafka.connect.data.Timestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SnowflakeColumnTypeMapper extends ColumnTypeMapper {
+public class StreamkapSnowflakeColumnTypeMapper extends SnowflakeColumnTypeMapper {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeColumnTypeMapper.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(StreamkapSnowflakeColumnTypeMapper.class);
+
+  Boolean legacyTimestampMappingEnabled = false;
+  // Boolean legacyDateMappingEnabled = false;
+  // Boolean legacyTimeMappingEnabled = false;
 
   @Override
   public String mapToColumnType(Schema.Type kafkaType, String schemaName) {
+    if (schemaName != null) {
+      // Debezium types
+      // Only where default, literal type mapping (based on kafka type) is not enough
+      switch (schemaName) {
+        case "io.debezium.time.MicroTime":
+        case "io.debezium.time.NanoTime":
+          return "TIME(6)";
+        case "io.debezium.time.Time":
+        case "io.debezium.time.IsoTime":
+          return "TIME(3)";
+        case "io.debezium.time.ZonedTimestamp":
+          return !legacyTimestampMappingEnabled ? "TIMESTAMP_TZ" : "TIMESTAMP";
+        case "io.debezium.time.ZonedTime":      // Snowflake doesn't have zoned 'time-only' data types
+        case "io.debezium.time.Timestamp":
+        case "io.debezium.time.MicroTimestamp":
+        case "io.debezium.time.NanoTimestamp":
+        case "io.debezium.time.IsoTimestamp":
+          return "TIMESTAMP";
+        case "io.debezium.time.Date":
+        case "io.debezium.time.IsoDate":
+          return "DATE";
+        case "io.debezium.data.Json":
+          return "VARIANT";
+      }
+    }
     switch (kafkaType) {
       case INT8:
         return "BYTEINT";
@@ -99,4 +130,8 @@ public class SnowflakeColumnTypeMapper extends ColumnTypeMapper {
       return null;
     }
   }
+
+  public void setStreamkapLegacyMappingConfig(Map<String, String> sinkConfig) {
+    this.legacyTimestampMappingEnabled = Boolean.parseBoolean(sinkConfig.getOrDefault(Utils.LEGACY_TIMESTAMP_MAPPING_ENABLED, Utils.LEGACY_TIMESTAMP_MAPPING_DEFAULT.toString()));
+  } 
 }
