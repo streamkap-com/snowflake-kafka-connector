@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.node.NumericNode;
 import com.snowflake.kafka.connector.records.RecordService.SnowflakeTableRow;
 
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Map;
 
 abstract class StreamingRecordMapper {
@@ -29,9 +28,11 @@ abstract class StreamingRecordMapper {
     String value;
     if (valueNode.isTextual()) {
       value = valueNode.textValue();
+    // BEGIN STR-737
     } else if (valueNode.isBinary()) {
       byte[] binaryValue = Base64.getDecoder().decode(valueNode.asText());
-      value = HexFormat.of().formatHex(binaryValue);
+      value = toHex(binaryValue);
+    // END STR-737
     } else if (valueNode.isNull()) {
       value = null;
     }
@@ -79,4 +80,15 @@ abstract class StreamingRecordMapper {
       return mapper.writeValueAsString(columnNode);
     }
   }
+
+  // Converts a byte array to a hexadecimal string
+  // Note: This method is not part of the original code, and this is not a standard hex conversion. It's a custom implementation to work around Java 8 compatibility (see POM).
+  // For newer Java versions, you can use HexFormat.of().formatHex().
+  protected String toHex(byte[] bytes) {
+    StringBuilder sb = new StringBuilder(bytes.length * 2);
+    for (byte b : bytes) {
+      sb.append(String.format("%02x", b));
+    }
+    return sb.toString();
+  }  
 }

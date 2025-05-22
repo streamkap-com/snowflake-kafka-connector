@@ -147,7 +147,7 @@ public class TestUtils {
 
   private static JsonNode profileForStreaming = null;
 
-  public static final String JSON_WITH_SCHEMA =
+public static final String JSON_WITH_SCHEMA =
       ""
           + "{\n"
           + "  \"schema\": {\n"
@@ -169,6 +169,21 @@ public class TestUtils {
           + "        \"name\": \"io.debezium.time.ZonedTimestamp\",\n"
           + "        \"optional\": false,\n"
           + "        \"field\": \"created_at\"\n"
+          + "      },\n"
+          + "      {\n"
+          + "        \"type\": \"bytes\",\n"
+          + "        \"optional\": false,\n"
+          + "        \"field\": \"raw_bytes\"\n"
+          + "      },\n"
+          + "      {\n"
+          + "        \"type\": \"string\",\n"
+          + "        \"optional\": false,\n"
+          + "        \"field\": \"base64_string\"\n"
+          + "      },\n"
+          + "      {\n"
+          + "        \"type\": \"string\",\n"
+          + "        \"optional\": false,\n"
+          + "        \"field\": \"hex_string\"\n"
           + "      }\n"
           + "    ],\n"
           + "    \"optional\": false,\n"
@@ -177,7 +192,10 @@ public class TestUtils {
           + "  \"payload\": {\n"
           + "    \"regionid\": \"Region_5\",\n"
           + "    \"gender\": \"FEMALE\",\n"
-          + "    \"created_at\": \"2024-06-15T12:34:56Z\"\n"
+          + "    \"created_at\": \"2024-06-15T12:34:56Z\",\n"
+          + "    \"raw_bytes\": \"U3RyZWFta2Fw\",\n"
+          + "    \"base64_string\": \"U3RyZWFta2Fw\",\n"
+          + "    \"hex_string\": \"53747265616d6b6170\"\n"
           + "  }\n"
           + "}";
   public static final String JSON_WITHOUT_SCHEMA = "{\"userid\": \"User_1\"}";
