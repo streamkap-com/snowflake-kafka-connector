@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+
+import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
@@ -13,10 +15,11 @@ import org.apache.kafka.connect.data.Timestamp;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.openjdk.jmh.annotations.Param;
 
 class StreamkapSnowflakeColumnTypeMapperTest {
 
-  private final SnowflakeColumnTypeMapper mapper = new SnowflakeColumnTypeMapper();
+  private final StreamkapSnowflakeColumnTypeMapper mapper = new StreamkapSnowflakeColumnTypeMapper();
 
   @ParameterizedTest(name = "should map Kafka type {0} to Snowflake column type {2}")
   @MethodSource("kafkaTypesToMap")
@@ -35,6 +38,14 @@ class StreamkapSnowflakeColumnTypeMapperTest {
   @MethodSource("debeziumTypesToMap")
   void shouldMapDebeziumTypeToSnowflakeColumnType(
       Schema.Type debeziumType, String schemaName, String expectedSnowflakeType) {
+    assertThat(mapper.mapToColumnType(debeziumType, schemaName)).isEqualTo(expectedSnowflakeType);
+  }
+
+  @ParameterizedTest(name = "should map Debezium type {0} to Snowflake column type {2}")
+  @MethodSource("debeziumTypesToLegacyMap")
+  void shouldMapDebeziumTypeToLegacySnowflakeColumnType(
+      Schema.Type debeziumType, String schemaName, String expectedSnowflakeType) {
+    mapper.setStreamkapLegacyMappingConfig(Map.of("snowflake.legacy.timestamp.mapping.enabled", "true"));
     assertThat(mapper.mapToColumnType(debeziumType, schemaName)).isEqualTo(expectedSnowflakeType);
   }
 
@@ -83,4 +94,8 @@ class StreamkapSnowflakeColumnTypeMapperTest {
         Arguments.of(Schema.Type.STRING, "io.debezium.time.ZonedTimestamp", "TIMESTAMP_TZ"),
         Arguments.of(Schema.Type.STRING, "io.debezium.data.Json", "VARIANT"));
   }
+
+  private static Stream<Arguments> debeziumTypesToLegacyMap() {
+    return Stream.of(Arguments.of(Schema.Type.STRING, "io.debezium.time.ZonedTimestamp", "TIMESTAMP"));
+  }  
 }
