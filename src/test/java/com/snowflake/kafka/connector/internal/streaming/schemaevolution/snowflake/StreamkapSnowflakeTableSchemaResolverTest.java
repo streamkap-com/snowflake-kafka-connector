@@ -17,24 +17,31 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 public class StreamkapSnowflakeTableSchemaResolverTest {
 
   private final SnowflakeTableSchemaResolver schemaResolver = new SnowflakeTableSchemaResolver(new StreamkapSnowflakeColumnTypeMapper());
+  
+  JsonConverter converter = new JsonConverter();  
+  
+  @AfterEach
+  public void tearDown() {
+    converter.close();
+  }
 
   @Test
   public void testGetColumnTypesWithoutSchema() throws JsonProcessingException {
     String columnName = "test";
     String nonExistingColumnName = "random";
     ObjectMapper mapper = new ObjectMapper();
-    JsonConverter jsonConverter = new JsonConverter();
     Map<String, ?> config = Collections.singletonMap("schemas.enable", false);
-    jsonConverter.configure(config, false);
+    converter.configure(config, false);
     Map<String, String> jsonMap = new HashMap<>();
     jsonMap.put(columnName, "value");
     SchemaAndValue schemaAndValue =
-        jsonConverter.toConnectData("topic", mapper.writeValueAsBytes(jsonMap));
+        converter.toConnectData("topic", mapper.writeValueAsBytes(jsonMap));
     SinkRecord recordWithoutSchema =
         new SinkRecord(
             "topic",
@@ -65,7 +72,6 @@ public class StreamkapSnowflakeTableSchemaResolverTest {
 
   @Test
   public void testGetColumnTypesWithSchema() {
-    JsonConverter converter = new JsonConverter();
     Map<String, String> converterConfig = new HashMap<>();
     converterConfig.put("schemas.enable", "true");
     converter.configure(converterConfig, false);
@@ -98,4 +104,37 @@ public class StreamkapSnowflakeTableSchemaResolverTest {
     assertThat(tableSchema.getColumnInfos().get(columnName3).getColumnType()).isEqualTo("TIMESTAMP_TZ");
     assertThat(tableSchema.getColumnInfos().get(columnName3).getComments()).isNull();
   }
+
+  @Test
+  public void testGetLegacyColumnTypesWithSchema() {
+    Map<String, String> converterConfig = new HashMap<>();
+    converterConfig.put("schemas.enable", "true");
+    converter.configure(converterConfig, false);
+    SchemaAndValue schemaAndValue =
+        converter.toConnectData(
+            "topic", TestUtils.JSON_WITH_SCHEMA.getBytes(StandardCharsets.UTF_8));
+    String columnName3 = Utils.quoteNameIfNeeded("created_at");
+    SinkRecord recordWithSchema =
+        new SinkRecord(
+            "topic",
+            0,
+            null,
+            null,
+            schemaAndValue.schema(),
+            schemaAndValue.value(),
+            0,
+            System.currentTimeMillis(),
+            TimestampType.CREATE_TIME);
+
+    StreamkapSnowflakeColumnTypeMapper mapper = new StreamkapSnowflakeColumnTypeMapper();
+    mapper.setStreamkapLegacyMappingConfig(Map.of("snowflake.legacy.timestamp.mapping.enabled", "true"));
+    SnowflakeTableSchemaResolver schemaResolver = new SnowflakeTableSchemaResolver(mapper);
+
+    TableSchema tableSchema =
+        schemaResolver.resolveTableSchemaFromRecord(
+            recordWithSchema, Arrays.asList(columnName3));
+
+    assertThat(tableSchema.getColumnInfos().get(columnName3).getColumnType()).isEqualTo("TIMESTAMP");
+    assertThat(tableSchema.getColumnInfos().get(columnName3).getComments()).isNull();
+  }  
 }
