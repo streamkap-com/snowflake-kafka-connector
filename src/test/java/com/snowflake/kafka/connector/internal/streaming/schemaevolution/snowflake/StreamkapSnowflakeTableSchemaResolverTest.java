@@ -127,7 +127,7 @@ public class StreamkapSnowflakeTableSchemaResolverTest {
             TimestampType.CREATE_TIME);
 
     StreamkapSnowflakeColumnTypeMapper mapper = new StreamkapSnowflakeColumnTypeMapper();
-    mapper.setStreamkapLegacyMappingConfig(Map.of("snowflake.legacy.timestamp.mapping.enabled", "true"));
+    mapper.setStreamkapLegacyMappingConfig(java.util.Collections.singletonMap("snowflake.legacy.timestamp.mapping.enabled", "true"));
     SnowflakeTableSchemaResolver schemaResolver = new SnowflakeTableSchemaResolver(mapper);
 
     TableSchema tableSchema =

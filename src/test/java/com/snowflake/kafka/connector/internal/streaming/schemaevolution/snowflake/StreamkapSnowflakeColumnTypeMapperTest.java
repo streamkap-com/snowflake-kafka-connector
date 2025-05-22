@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
-import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
@@ -44,7 +43,7 @@ class StreamkapSnowflakeColumnTypeMapperTest {
   @MethodSource("debeziumTypesToLegacyMap")
   void shouldMapDebeziumTypeToLegacySnowflakeColumnType(
       Schema.Type debeziumType, String schemaName, String expectedSnowflakeType) {
-    mapper.setStreamkapLegacyMappingConfig(Map.of("snowflake.legacy.timestamp.mapping.enabled", "true"));
+    mapper.setStreamkapLegacyMappingConfig(java.util.Collections.singletonMap("snowflake.legacy.timestamp.mapping.enabled", "true"));
     assertThat(mapper.mapToColumnType(debeziumType, schemaName)).isEqualTo(expectedSnowflakeType);
   }
 
