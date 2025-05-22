@@ -61,7 +61,7 @@ public class StreamkapSnowflakeColumnTypeMapper extends SnowflakeColumnTypeMappe
       }
     }
 
-    // Fall back on default Snowflake type mapping
+    //Fall back on default Snowflake type mapping
     return super.mapToColumnType(kafkaType, schemaName);
   }
 
