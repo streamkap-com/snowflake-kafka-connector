@@ -22,6 +22,8 @@ import com.snowflake.kafka.connector.internal.streaming.schemaevolution.InsertEr
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEvolutionService;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.iceberg.IcebergSchemaEvolutionService;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake.SnowflakeSchemaEvolutionService;
+import com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake.SnowflakeTableSchemaResolver;
+import com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake.StreamkapSnowflakeColumnTypeMapper;
 import com.snowflake.kafka.connector.internal.telemetry.SnowflakeTelemetryService;
 import com.snowflake.kafka.connector.records.RecordService;
 import com.snowflake.kafka.connector.records.RecordServiceFactory;
@@ -145,10 +147,16 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
             Utils.isIcebergEnabled(connectorConfig), schematizationEnabled);
     this.icebergTableSchemaValidator = new IcebergTableSchemaValidator(conn);
     this.icebergInitService = new IcebergInitService(conn);
+
+    // ENG-1450
+    StreamkapSnowflakeColumnTypeMapper streamkapMapper = new StreamkapSnowflakeColumnTypeMapper();
+    streamkapMapper.setStreamkapLegacyMappingConfig(connectorConfig);
+    // ENG-1450 END
+
     this.schemaEvolutionService =
         Utils.isIcebergEnabled(connectorConfig)
             ? new IcebergSchemaEvolutionService(conn)
-            : new SnowflakeSchemaEvolutionService(conn);
+            : new SnowflakeSchemaEvolutionService(conn, new SnowflakeTableSchemaResolver(streamkapMapper));
 
     this.topicToTableMap = new HashMap<>();
 

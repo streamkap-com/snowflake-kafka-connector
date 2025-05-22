@@ -5,7 +5,6 @@ import org.apache.kafka.connect.data.Schema;
 
 public abstract class ColumnTypeMapper {
 
-  public static final String DECIMAL_SQL_TYPE = "DECIMAL(38, 7)";
   public String mapToColumnType(Schema.Type kafkaType) {
     return mapToColumnType(kafkaType, null);
   }

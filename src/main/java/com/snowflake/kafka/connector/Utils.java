@@ -141,6 +141,11 @@ public class Utils {
   public static final String APPLY_DYNAMIC_TABLE_SCRIPT_CONF = "apply.dynamic.table.script";
   public static final String CREATE_SCHEMA_AUTO = "create.schema.auto";
 
+  // ENG-1450
+  public static final String LEGACY_TIMESTAMP_MAPPING_ENABLED = "snowflake.legacy.timestamp.mapping.enabled";
+  public static final Boolean LEGACY_TIMESTAMP_MAPPING_DEFAULT = false;
+  // ENG-1450 END
+
   private static final KCLogger LOGGER = new KCLogger(Utils.class.getName());
 
   /**
