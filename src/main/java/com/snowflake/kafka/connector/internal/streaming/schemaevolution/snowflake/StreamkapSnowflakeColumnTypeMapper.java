@@ -33,6 +33,12 @@ public class StreamkapSnowflakeColumnTypeMapper extends SnowflakeColumnTypeMappe
       // Debezium types
       // Only where default, literal type mapping (based on kafka type) is not enough
       switch (schemaName) {
+        case org.apache.kafka.connect.data.Decimal.LOGICAL_NAME:
+          if (kafkaType == BYTES) {
+            return "DECIMAL(38,7)";
+          } else {
+            return "DOUBLE";
+          }        
         case "io.debezium.time.MicroTime":
         case "io.debezium.time.NanoTime":
           return "TIME(6)";
