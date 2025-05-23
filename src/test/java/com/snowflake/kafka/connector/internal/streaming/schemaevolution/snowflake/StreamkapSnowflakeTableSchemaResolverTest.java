@@ -17,19 +17,13 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 public class StreamkapSnowflakeTableSchemaResolverTest {
 
   private final SnowflakeTableSchemaResolver schemaResolver = new SnowflakeTableSchemaResolver(new StreamkapSnowflakeColumnTypeMapper());
   
-  JsonConverter converter = new JsonConverter();  
-  
-  @AfterEach
-  public void tearDown() {
-    converter.close();
-  }
+  JsonConverter converter = new JsonConverter();
 
   @Test
   public void testGetColumnTypesWithoutSchema() throws JsonProcessingException {
