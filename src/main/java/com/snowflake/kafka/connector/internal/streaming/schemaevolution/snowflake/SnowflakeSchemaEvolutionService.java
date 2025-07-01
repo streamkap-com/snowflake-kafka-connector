@@ -1,15 +1,22 @@
 package com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.snowflake.kafka.connector.internal.SnowflakeConnectionService;
 import com.snowflake.kafka.connector.internal.SnowflakeKafkaConnectorException;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEvolutionService;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEvolutionTargetItems;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.TableSchema;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.TableSchemaResolver;
+
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import com.snowflake.kafka.connector.templating.StreamkapQueryTemplate;
 import net.snowflake.ingest.streaming.internal.ColumnProperties;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,8 +34,7 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
     this.tableSchemaResolver = new SnowflakeTableSchemaResolver();
   }
 
-  @VisibleForTesting
-  SnowflakeSchemaEvolutionService(
+  public SnowflakeSchemaEvolutionService(
       SnowflakeConnectionService conn, TableSchemaResolver tableSchemaResolver) {
     this.conn = conn;
     this.tableSchemaResolver = tableSchemaResolver;
@@ -47,8 +53,10 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
   public void evolveSchemaIfNeeded(
       SchemaEvolutionTargetItems targetItems,
       SinkRecord record,
-      Map<String, ColumnProperties> existingSchema) {
-    String tableName = targetItems.getTableName();
+      Map<String, ColumnProperties> existingSchema,
+      StreamkapQueryTemplate streamkapQueryTemplate,
+      String targetTableName) {
+    String tableName = (!StringUtils.isEmpty(targetTableName) ? targetTableName : targetItems.getTableName());
     List<String> columnsToDropNullability = targetItems.getColumnsToDropNonNullability();
     // Update nullability if needed, ignore any exceptions since other task might be succeeded
     if (!columnsToDropNullability.isEmpty()) {
@@ -70,8 +78,17 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
     // Add columns if needed, ignore any exceptions since other task might be succeeded
     if (!columnsToAdd.isEmpty()) {
       LOGGER.debug("Adding columns to table: {} columns: {}", tableName, columnsToAdd);
+
+      List<String> fieldNamesOrderedAsOnSource = Stream.concat(
+              record.keySchema() != null ? record.keySchema().fields().stream().map(f -> f.name()) : Stream.<String>empty(),
+              record.valueSchema() != null ? record.valueSchema().fields().stream().map(f -> f.name())  : Stream.<String>empty()
+      ).collect(Collectors.toList());
+      List<String> extraColNamesOrderedAsOnSource = new ArrayList<>(columnsToAdd);
+      extraColNamesOrderedAsOnSource.sort(
+              Comparator.comparingInt(fieldNamesOrderedAsOnSource::indexOf));
+
       TableSchema tableSchema =
-          tableSchemaResolver.resolveTableSchemaFromRecord(record, columnsToAdd);
+          tableSchemaResolver.resolveTableSchemaFromRecord(record, extraColNamesOrderedAsOnSource);
       try {
         conn.appendColumnsToTable(tableName, tableSchema.getColumnInfos());
       } catch (SnowflakeKafkaConnectorException e) {
@@ -82,6 +99,10 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
                     + " ignored",
                 tableName),
             e);
+      }
+
+      if( streamkapQueryTemplate.isApplyDynamicTableScript()) {
+        streamkapQueryTemplate.applyCreateScriptIfAvailable(tableName, record, conn);
       }
     }
   }

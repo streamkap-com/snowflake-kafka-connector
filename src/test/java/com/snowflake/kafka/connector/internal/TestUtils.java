@@ -57,6 +57,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -64,6 +65,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import net.snowflake.client.jdbc.SnowflakeDriver;
 import net.snowflake.client.jdbc.internal.apache.http.HttpHeaders;
 import net.snowflake.client.jdbc.internal.apache.http.client.methods.CloseableHttpResponse;
 import net.snowflake.client.jdbc.internal.apache.http.client.methods.HttpPost;
@@ -160,6 +163,12 @@ public class TestUtils {
           + "        \"type\": \"string\",\n"
           + "        \"optional\": false,\n"
           + "        \"field\": \"gender\"\n"
+          + "      },\n"
+          + "      {\n"
+          + "        \"type\": \"string\",\n"
+          + "        \"name\": \"io.debezium.time.ZonedTimestamp\",\n"
+          + "        \"optional\": false,\n"
+          + "        \"field\": \"created_at\"\n"
           + "      }\n"
           + "    ],\n"
           + "    \"optional\": false,\n"
@@ -167,7 +176,8 @@ public class TestUtils {
           + "  },\n"
           + "  \"payload\": {\n"
           + "    \"regionid\": \"Region_5\",\n"
-          + "    \"gender\": \"FEMALE\"\n"
+          + "    \"gender\": \"FEMALE\",\n"
+          + "    \"created_at\": \"2024-06-15T12:34:56Z\"\n"
           + "  }\n"
           + "}";
   public static final String JSON_WITHOUT_SCHEMA = "{\"userid\": \"User_1\"}";
@@ -261,6 +271,20 @@ public class TestUtils {
     return InternalUtils.parsePrivateKey(TestUtils.getKeyString());
   }
 
+  /** Given a profile file path name, generate a connection by constructing a snowflake driver. */
+  public static Connection generateConnectionToSnowflakeWithEncryptedKey()
+          throws Exception {
+    Map<String, String> conf = getConfWithEncryptedKey();
+    SnowflakeURL url = new SnowflakeURL(conf.get(Utils.SF_URL));
+
+    Properties properties =
+            InternalUtils.createProperties(conf, url);
+
+    Connection connToSnowflake = new SnowflakeDriver().connect(url.getJdbcUrl(), properties);
+
+    return connToSnowflake;
+  }
+
   /**
    * read conf file
    *
@@ -317,11 +341,9 @@ public class TestUtils {
   }
 
   /** @return JDBC config with encrypted private key */
-  static Map<String, String> getConfWithEncryptedKey() {
-    if (conf == null) {
-      getPropertiesMapFromProfile(PROFILE_PATH);
-    }
-    Map<String, String> config = new HashMap<>(conf);
+  public static Map<String, String> getConfWithEncryptedKey() {
+    Map<String, String> c = getPropertiesMapFromProfile(PROFILE_PATH);
+    Map<String, String> config = new HashMap<>(c);
 
     config.remove(Utils.SF_PRIVATE_KEY);
     config.put(Utils.SF_PRIVATE_KEY, getEncryptedPrivateKey());

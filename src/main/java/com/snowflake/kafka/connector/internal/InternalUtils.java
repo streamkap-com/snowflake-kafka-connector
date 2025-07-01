@@ -59,6 +59,8 @@ public class InternalUtils {
   static void assertNotEmpty(String name, Object value) {
     if (value == null || (value instanceof String && value.toString().isEmpty())) {
       switch (name.toLowerCase()) {
+        case "schemaname":
+          throw SnowflakeErrors.ERROR_S0031.getException();
         case "tablename":
           throw SnowflakeErrors.ERROR_0005.getException();
         case "stagename":
@@ -117,7 +119,7 @@ public class InternalUtils {
    * @param url target server url
    * @return Properties object which will be passed down to JDBC connection
    */
-  static Properties createProperties(Map<String, String> conf, SnowflakeURL url) {
+  public static Properties createProperties(Map<String, String> conf, SnowflakeURL url) {
     return createProperties(conf, url, IngestionMethodConfig.SNOWPIPE);
   }
 

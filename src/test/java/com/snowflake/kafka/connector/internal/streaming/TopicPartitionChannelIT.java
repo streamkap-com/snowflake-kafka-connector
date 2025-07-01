@@ -570,7 +570,7 @@ public class TopicPartitionChannelIT {
         TestUtils.createJsonStringSinkRecords(0, noOfRecords, testTableName, PARTITION);
 
     for (int idx = 0; idx < records.size(); idx++) {
-      topicPartitionChannelForFormatV2.insertRecord(records.get(idx), idx == 0);
+        topicPartitionChannelForFormatV2.insertRecord(records.get(idx), idx == 0);
     }
     TestUtils.assertWithRetry(
         () -> topicPartitionChannelForFormatV2.getOffsetSafeToCommitToKafka() == noOfRecords, 5, 5);

@@ -22,6 +22,8 @@ import com.snowflake.kafka.connector.internal.streaming.schemaevolution.InsertEr
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.SchemaEvolutionService;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.iceberg.IcebergSchemaEvolutionService;
 import com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake.SnowflakeSchemaEvolutionService;
+import com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake.SnowflakeTableSchemaResolver;
+import com.snowflake.kafka.connector.internal.streaming.schemaevolution.snowflake.StreamkapSnowflakeColumnTypeMapper;
 import com.snowflake.kafka.connector.internal.telemetry.SnowflakeTelemetryService;
 import com.snowflake.kafka.connector.records.RecordService;
 import com.snowflake.kafka.connector.records.RecordServiceFactory;
@@ -96,6 +98,7 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
   // Config set in JSON
   private final Map<String, String> connectorConfig;
 
+  private boolean autoSchematization;
   private final boolean enableSchematization;
 
   private final boolean closeChannelsInParallel;
@@ -144,10 +147,16 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
             Utils.isIcebergEnabled(connectorConfig), schematizationEnabled);
     this.icebergTableSchemaValidator = new IcebergTableSchemaValidator(conn);
     this.icebergInitService = new IcebergInitService(conn);
+
+    // ENG-1450
+    StreamkapSnowflakeColumnTypeMapper streamkapMapper = new StreamkapSnowflakeColumnTypeMapper();
+    streamkapMapper.setStreamkapLegacyMappingConfig(connectorConfig);
+    // ENG-1450 END
+
     this.schemaEvolutionService =
         Utils.isIcebergEnabled(connectorConfig)
             ? new IcebergSchemaEvolutionService(conn)
-            : new SnowflakeSchemaEvolutionService(conn);
+            : new SnowflakeSchemaEvolutionService(conn, new SnowflakeTableSchemaResolver(streamkapMapper));
 
     this.topicToTableMap = new HashMap<>();
 
@@ -158,6 +167,8 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
     this.connectorConfig = connectorConfig;
 
     this.enableSchematization = schematizationEnabled;
+    this.autoSchematization =
+        this.recordService.setAndGetAutoSchematizationFromConfig(this.connectorConfig);
 
     this.closeChannelsInParallel =
         Optional.ofNullable(connectorConfig.get(SNOWPIPE_STREAMING_CLOSE_CHANNELS_IN_PARALLEL))
@@ -621,7 +632,7 @@ public class SnowflakeSinkServiceV2 implements SnowflakeSinkService {
       if (this.enableSchematization) {
         // Always create the table with RECORD_METADATA only and rely on schema evolution to update
         // the schema
-        this.conn.createTableWithOnlyMetadataColumn(tableName);
+        this.conn.createTableWithOnlyMetadataColumn(tableName, this.autoSchematization);
       } else {
         this.conn.createTable(tableName);
       }

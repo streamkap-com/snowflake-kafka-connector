@@ -96,6 +96,7 @@ from test_suit.test_string_avro import TestStringAvro
 from test_suit.test_string_avrosr import TestStringAvrosr
 from test_suit.test_string_json import TestStringJson
 from test_suit.test_string_json_ignore_tombstone import TestStringJsonIgnoreTombstone
+from test_suit.test_snowpipe_streaming_channel_migration_disabled import TestSnowpipeStreamingStringJsonChannelMigrationDisabled
 from test_suit.test_streaming_client_parameter_override import (
     TestStreamingClientParameterOverride,
 )
