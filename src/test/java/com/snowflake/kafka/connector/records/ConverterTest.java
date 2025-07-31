@@ -365,37 +365,39 @@ public class ConverterTest {
   @ParameterizedTest
   @MethodSource("intTypes")
   public void testDebeziumDate_jsonConverter(String typeStr) {
-    JsonConverter jsonConverter = new JsonConverter();
-    Map<String, ?> config = Map.of("schemas.enable", true);
-    jsonConverter.configure(config, false);
+    try(JsonConverter jsonConverter = new JsonConverter()) {
+      Map<String, ?> config = Map.of("schemas.enable", true);
+      jsonConverter.configure(config, false);
 
-    int daysFromEpoch = 10001;
-    String value =
-        "{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.Date\", \"version\": 1 }, \"payload\": %d }".formatted(typeStr, daysFromEpoch);
-    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+      int daysFromEpoch = 10001;
+      String value =
+          "{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.Date\", \"version\": 1 }, \"payload\": %d }".formatted(typeStr, daysFromEpoch);
+      SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
-    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
-    String dateOfEpochIso = LocalDate.ofEpochDay(daysFromEpoch).format(DateTimeFormatter.ISO_LOCAL_DATE);
+      JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+      String dateOfEpochIso = LocalDate.ofEpochDay(daysFromEpoch).format(DateTimeFormatter.ISO_LOCAL_DATE);
 
-    assertEquals(dateOfEpochIso, result.asText());
+      assertEquals(dateOfEpochIso, result.asText());
+    }
   }
 
   @ParameterizedTest
   @MethodSource("intTypes")
   public void testDebeziumTime_jsonConverter(String typeStr) {
-    JsonConverter jsonConverter = new JsonConverter();
-    Map<String, ?> config = Map.of("schemas.enable", true);
-    jsonConverter.configure(config, false);
+    try(JsonConverter jsonConverter = new JsonConverter()) {
+      Map<String, ?> config = Map.of("schemas.enable", true);
+      jsonConverter.configure(config, false);
 
-    long millisecondsOfDay = 10_000L;
-    String value =
-        "{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(typeStr, millisecondsOfDay);
-    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+      long millisecondsOfDay = 10_000L;
+      String value =
+          "{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(typeStr, millisecondsOfDay);
+      SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
-    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
-    String timeLocalIso = LocalTime.ofNanoOfDay(millisecondsOfDay * 1000).format(DateTimeFormatter.ISO_LOCAL_TIME);
+      JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+      String timeLocalIso = LocalTime.ofNanoOfDay(millisecondsOfDay * 1000).format(DateTimeFormatter.ISO_LOCAL_TIME);
 
-    assertEquals(timeLocalIso, result.asText());
+      assertEquals(timeLocalIso, result.asText());
+    }
   }
 
   @Test
