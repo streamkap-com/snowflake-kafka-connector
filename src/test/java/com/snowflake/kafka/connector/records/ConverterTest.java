@@ -371,7 +371,7 @@ public class ConverterTest {
 
     int daysFromEpoch = 10001;
     String value =
-        ("{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.Date\", \"version\": 1 }, \"payload\": %d }").formatted(typeStr, daysFromEpoch);
+        "{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.Date\", \"version\": 1 }, \"payload\": %d }".formatted(typeStr, daysFromEpoch);
     SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
@@ -389,7 +389,7 @@ public class ConverterTest {
 
     long millisecondsOfDay = 10_000L;
     String value =
-        ("{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }").formatted(typeStr, millisecondsOfDay);
+        "{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(typeStr, millisecondsOfDay);
     SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
