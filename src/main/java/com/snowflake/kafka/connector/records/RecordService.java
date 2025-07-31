@@ -44,6 +44,9 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -359,11 +362,19 @@ public boolean setAndGetAutoSchematizationFromConfig(
                 isStreaming ? TIME_FORMAT_STREAMING : TIME_FORMAT;
             return JsonNodeFactory.instance.textNode(format.get().format((java.util.Date) value));
           }
+          if (schema != null && "io.debezium.time.Date".equals(schema.name()) ) {
+            return JsonNodeFactory.instance.textNode(
+                    LocalDate.ofEpochDay((Integer) value).format(DateTimeFormatter.ISO_LOCAL_DATE));
+          }
           return JsonNodeFactory.instance.numberNode((Integer) value);
         case INT64:
           if (schema != null && Timestamp.LOGICAL_NAME.equals(schema.name())) {
             return JsonNodeFactory.instance.numberNode(
                 Timestamp.fromLogical(schema, (java.util.Date) value));
+          }
+          if (schema != null && "io.debezium.time.MicroTime".equals(schema.name())) {
+            return JsonNodeFactory.instance.textNode(
+                    LocalTime.ofNanoOfDay((Long) value * 1000L).format(DateTimeFormatter.ISO_LOCAL_TIME));
           }
           return JsonNodeFactory.instance.numberNode((Long) value);
         case FLOAT32:
