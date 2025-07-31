@@ -57,6 +57,9 @@ import java.util.TimeZone;
  * "partition": 123, "key":"key name" } "content": "record content" }</i>
  */
 public class RecordService {
+
+  private static final String DEBEZIUM_DATE = "io.debezium.time.Date";
+  private static final String DEBEZIUM_TIME = "io.debezium.time.MicroTime";
   private final KCLogger LOGGER = new KCLogger(RecordService.class.getName());
 
   private final ObjectMapper mapper;
@@ -306,6 +309,16 @@ public boolean setAndGetAutoSchematizationFromConfig(
     return result;
   }
 
+  private static JsonNode convertDebeziumTimeToTextNode(long value) {
+    return JsonNodeFactory.instance.textNode(
+        LocalTime.ofNanoOfDay(value * 1000L).format(DateTimeFormatter.ISO_LOCAL_TIME));
+  }
+
+  private static JsonNode convertDebeziumDateToTextNode(long value) {
+    return JsonNodeFactory.instance.textNode(
+        LocalDate.ofEpochDay(value).format(DateTimeFormatter.ISO_LOCAL_DATE));
+  }
+
   /**
    * Convert this object, in the org.apache.kafka.connect.data format, into a JSON object, returning
    * the converted object.
@@ -362,9 +375,14 @@ public boolean setAndGetAutoSchematizationFromConfig(
                 isStreaming ? TIME_FORMAT_STREAMING : TIME_FORMAT;
             return JsonNodeFactory.instance.textNode(format.get().format((java.util.Date) value));
           }
-          if (schema != null && "io.debezium.time.Date".equals(schema.name()) ) {
-            return JsonNodeFactory.instance.textNode(
-                    LocalDate.ofEpochDay((Integer) value).format(DateTimeFormatter.ISO_LOCAL_DATE));
+          if (schema != null) {
+            int int32value = (Integer) value;
+            if (DEBEZIUM_TIME.equals(schema.name())) {
+              return convertDebeziumTimeToTextNode(int32value);
+            }
+            if (DEBEZIUM_DATE.equals(schema.name())) {
+              return convertDebeziumDateToTextNode(int32value);
+            }
           }
           return JsonNodeFactory.instance.numberNode((Integer) value);
         case INT64:
@@ -372,9 +390,14 @@ public boolean setAndGetAutoSchematizationFromConfig(
             return JsonNodeFactory.instance.numberNode(
                 Timestamp.fromLogical(schema, (java.util.Date) value));
           }
-          if (schema != null && "io.debezium.time.MicroTime".equals(schema.name())) {
-            return JsonNodeFactory.instance.textNode(
-                    LocalTime.ofNanoOfDay((Long) value * 1000L).format(DateTimeFormatter.ISO_LOCAL_TIME));
+          if (schema != null) {
+            long int64value = (Long) value;
+            if (DEBEZIUM_TIME.equals(schema.name())) {
+              return convertDebeziumTimeToTextNode(int64value);
+            }
+            if (DEBEZIUM_DATE.equals(schema.name())) {
+              return convertDebeziumDateToTextNode(int64value);
+            }
           }
           return JsonNodeFactory.instance.numberNode((Long) value);
         case FLOAT32:
@@ -482,6 +505,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
           "Invalid type for " + schema.type() + ": " + value.getClass());
     }
   }
+
 
   /**
    * Returns true if we want to skip this record since the value is null or it is an empty json

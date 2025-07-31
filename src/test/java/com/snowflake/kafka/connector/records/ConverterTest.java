@@ -43,9 +43,17 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +64,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Stream;
 import net.snowflake.client.jdbc.internal.apache.commons.codec.binary.Hex;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
@@ -66,7 +75,11 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.storage.SimpleHeaderConverter;
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class ConverterTest {
 
@@ -343,6 +356,46 @@ public class ConverterTest {
     String exptectedDateTimeFormatStr =
         ISO_DATE_TIME_FORMAT.get().format(CALENDAR_THREAD_SAFE.get().getTime());
     return result.toString().contains(exptectedDateTimeFormatStr);
+  }
+
+  private static Stream<String> intTypes() {
+    return Stream.of("int32", "int64");
+  }
+
+  @ParameterizedTest
+  @MethodSource("intTypes")
+  public void testDebeziumDate_jsonConverter(String typeStr) {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    int daysFromEpoch = 10001;
+    String value =
+        ("{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.Date\", \"version\": 1 }, \"payload\": %d }").formatted(typeStr, daysFromEpoch);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+    String dateOfEpochIso = LocalDate.ofEpochDay(daysFromEpoch).format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+    assertEquals(dateOfEpochIso, result.asText());
+  }
+
+  @ParameterizedTest
+  @MethodSource("intTypes")
+  public void testDebeziumTime_jsonConverter(String typeStr) {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    long millisecondsOfDay = 10_000L;
+    String value =
+        ("{ \"schema\": { \"type\": \"%s\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }").formatted(typeStr, millisecondsOfDay);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+    String timeLocalIso = LocalTime.ofNanoOfDay(millisecondsOfDay * 1000).format(DateTimeFormatter.ISO_LOCAL_TIME);
+
+    assertEquals(timeLocalIso, result.asText());
   }
 
   @Test

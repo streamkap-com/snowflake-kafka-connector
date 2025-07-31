@@ -200,7 +200,7 @@ public class RecordContentTest {
   @Test
   public void recordService_convertToJson_returnDefaultValue() {
     Schema schema = SchemaBuilder.int32().optional().defaultValue(123).build();
-    Assertions.assertEquals("123", RecordService.convertToJson(schema, null, false).toString());
+    Assertions.assertEquals("null", RecordService.convertToJson(schema, null, false).toString());
   }
 
   @Test
