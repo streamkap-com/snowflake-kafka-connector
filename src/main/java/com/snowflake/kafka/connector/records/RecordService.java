@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
 import com.snowflake.kafka.connector.internal.KCLogger;
 import com.snowflake.kafka.connector.internal.SnowflakeErrors;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.ConnectSchema;
 import org.apache.kafka.connect.data.Date;
@@ -44,6 +46,9 @@ import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -54,6 +59,11 @@ import java.util.TimeZone;
  * "partition": 123, "key":"key name" } "content": "record content" }</i>
  */
 public class RecordService {
+
+  private static final String DEBEZIUM_DATE = "io.debezium.time.Date";
+  private static final String DEBEZIUM_TIME = "io.debezium.time.MicroTime";
+  private static final String DEBEZIUM_TIMESTAMP = "io.debezium.time.Timestamp";
+
   private final KCLogger LOGGER = new KCLogger(RecordService.class.getName());
 
   private final ObjectMapper mapper;
@@ -303,6 +313,21 @@ public boolean setAndGetAutoSchematizationFromConfig(
     return result;
   }
 
+  private static JsonNode convertDebeziumTimeToTextNode(long value) {
+    return JsonNodeFactory.instance.textNode(
+        LocalTime.ofNanoOfDay(value * 1000L).format(DateTimeFormatter.ISO_LOCAL_TIME));
+  }
+
+  private static JsonNode convertDebeziumDateToTextNode(long value) {
+    return JsonNodeFactory.instance.textNode(
+        LocalDate.ofEpochDay(value).format(DateTimeFormatter.ISO_LOCAL_DATE));
+  }
+
+  private static JsonNode convertDebeziumTimestampTextNode(long value) {
+    return JsonNodeFactory.instance.textNode(
+        Instant.ofEpochMilli(value).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+  }
+
   /**
    * Convert this object, in the org.apache.kafka.connect.data format, into a JSON object, returning
    * the converted object.
@@ -359,11 +384,20 @@ public boolean setAndGetAutoSchematizationFromConfig(
                 isStreaming ? TIME_FORMAT_STREAMING : TIME_FORMAT;
             return JsonNodeFactory.instance.textNode(format.get().format((java.util.Date) value));
           }
+          if (schema != null && DEBEZIUM_DATE.equals(schema.name())) {
+            return convertDebeziumDateToTextNode((Integer) value);
+          }
           return JsonNodeFactory.instance.numberNode((Integer) value);
         case INT64:
           if (schema != null && Timestamp.LOGICAL_NAME.equals(schema.name())) {
             return JsonNodeFactory.instance.numberNode(
                 Timestamp.fromLogical(schema, (java.util.Date) value));
+          }
+          if (schema != null && DEBEZIUM_TIME.equals(schema.name())) {
+             return convertDebeziumTimeToTextNode((Long) value);
+          }
+          if (schema != null && DEBEZIUM_TIMESTAMP.equals(schema.name())) {
+            return convertDebeziumTimestampTextNode((Long) value);
           }
           return JsonNodeFactory.instance.numberNode((Long) value);
         case FLOAT32:
@@ -471,6 +505,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
           "Invalid type for " + schema.type() + ": " + value.getClass());
     }
   }
+
 
   /**
    * Returns true if we want to skip this record since the value is null or it is an empty json

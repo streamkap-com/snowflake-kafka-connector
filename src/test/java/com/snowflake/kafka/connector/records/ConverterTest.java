@@ -43,6 +43,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -343,6 +348,61 @@ public class ConverterTest {
     String exptectedDateTimeFormatStr =
         ISO_DATE_TIME_FORMAT.get().format(CALENDAR_THREAD_SAFE.get().getTime());
     return result.toString().contains(exptectedDateTimeFormatStr);
+  }
+
+
+  @Test
+  public void testDebeziumDate_jsonConverter() {
+    try(JsonConverter jsonConverter = new JsonConverter()) {
+      Map<String, ?> config = Map.of("schemas.enable", true);
+      jsonConverter.configure(config, false);
+
+      int daysFromEpoch = 10001;
+      String value =
+          "{ \"schema\": { \"type\": \"int32\", \"name\": \"io.debezium.time.Date\", \"version\": 1 }, \"payload\": %d }".formatted(daysFromEpoch);
+      SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+      JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+      String dateOfEpochIso = LocalDate.ofEpochDay(daysFromEpoch).format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+      assertEquals(dateOfEpochIso, result.asText());
+    }
+  }
+
+  @Test
+  public void testDebeziumTimestampp_jsonConverter() {
+    try(JsonConverter jsonConverter = new JsonConverter()) {
+      Map<String, ?> config = Map.of("schemas.enable", true);
+      jsonConverter.configure(config, false);
+
+      long millisecondsNow = Instant.now().toEpochMilli();
+      String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }".formatted(millisecondsNow);
+      SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+      JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+      String isoLocalDateTime = Instant.ofEpochMilli(millisecondsNow).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+      assertEquals(isoLocalDateTime, result.asText());
+    }
+  }
+
+  @Test
+  public void testDebeziumTime_jsonConverter() {
+    try(JsonConverter jsonConverter = new JsonConverter()) {
+      Map<String, ?> config = Map.of("schemas.enable", true);
+      jsonConverter.configure(config, false);
+
+      long millisecondsOfDay = 10_000L;
+      String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(millisecondsOfDay);
+      SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+      JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+      String timeLocalIso = LocalTime.ofNanoOfDay(millisecondsOfDay * 1000).format(DateTimeFormatter.ISO_LOCAL_TIME);
+
+      assertEquals(timeLocalIso, result.asText());
+    }
   }
 
   @Test
