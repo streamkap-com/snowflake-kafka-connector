@@ -30,34 +30,45 @@ public class StreamkapSnowflakeColumnTypeMapper extends SnowflakeColumnTypeMappe
   @Override
   public String mapToColumnType(Schema.Type kafkaType, String schemaName) {
     if (schemaName != null) {
-      // Debezium types
-      // Only where default, literal type mapping (based on kafka type) is not enough
-      switch (schemaName) {
-        case org.apache.kafka.connect.data.Decimal.LOGICAL_NAME:
-          if (kafkaType == BYTES) {
-            return "DECIMAL(38,7)";
-          } else {
-            return "DOUBLE";
-          }        
-        case "io.debezium.time.MicroTime":
-        case "io.debezium.time.NanoTime":
-          return "TIME(6)";
-        case "io.debezium.time.Time":
-        case "io.debezium.time.IsoTime":
-          return "TIME(3)";
-        case "io.debezium.time.ZonedTimestamp":
-          return !legacyTimestampMappingEnabled ? "TIMESTAMP_TZ" : "TIMESTAMP";
-        case "io.debezium.time.ZonedTime":      // Snowflake doesn't have zoned 'time-only' data types
-        case "io.debezium.time.Timestamp":
-        case "io.debezium.time.MicroTimestamp":
-        case "io.debezium.time.NanoTimestamp":
-        case "io.debezium.time.IsoTimestamp":
-          return "TIMESTAMP";
-        case "io.debezium.time.Date":
-        case "io.debezium.time.IsoDate":
-          return "DATE";
-        case "io.debezium.data.Json":
-          return "VARIANT";
+
+      if (kafkaType == ARRAY) {
+        switch (schemaName) {
+          case "io.debezium.time.Date": return "ARRAY(DATE)";
+          case "io.debezium.time.MicroTime": return "ARRAY(TIME(6))";
+          case "io.debezium.time.Timestamp": return "ARRAY(TIMESTAMP_TZ)";
+        }
+      } else {
+
+        // Debezium types
+        // Only where default, literal type mapping (based on kafka type) is not enough
+        switch (schemaName) {
+          case org.apache.kafka.connect.data.Decimal.LOGICAL_NAME:
+            if (kafkaType == BYTES) {
+              return "DECIMAL(38,7)";
+            } else {
+              return "DOUBLE";
+            }
+          case "io.debezium.time.MicroTime":
+          case "io.debezium.time.NanoTime":
+            return "TIME(6)";
+          case "io.debezium.time.Time":
+          case "io.debezium.time.IsoTime":
+            return "TIME(3)";
+          case "io.debezium.time.ZonedTimestamp":
+            return !legacyTimestampMappingEnabled ? "TIMESTAMP_TZ" : "TIMESTAMP";
+          case "io.debezium.time.ZonedTime":      // Snowflake doesn't have zoned 'time-only' data types
+          case "io.debezium.time.Timestamp":
+            return "TIMESTAMP_TZ";
+          case "io.debezium.time.MicroTimestamp":
+          case "io.debezium.time.NanoTimestamp":
+          case "io.debezium.time.IsoTimestamp":
+            return "TIMESTAMP";
+          case "io.debezium.time.Date":
+          case "io.debezium.time.IsoDate":
+            return "DATE";
+          case "io.debezium.data.Json":
+            return "VARIANT";
+        }
       }
     }
 

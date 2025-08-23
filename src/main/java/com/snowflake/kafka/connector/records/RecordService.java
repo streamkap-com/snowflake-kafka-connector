@@ -63,6 +63,7 @@ public class RecordService {
   private static final String DEBEZIUM_DATE = "io.debezium.time.Date";
   private static final String DEBEZIUM_TIME = "io.debezium.time.MicroTime";
   private static final String DEBEZIUM_TIMESTAMP = "io.debezium.time.Timestamp";
+  private static final DateTimeFormatter FORMATTER_HH_mm_ss_SSSSSS = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS");
 
   private final KCLogger LOGGER = new KCLogger(RecordService.class.getName());
 
@@ -315,7 +316,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
 
   private static JsonNode convertDebeziumTimeToTextNode(long value) {
     return JsonNodeFactory.instance.textNode(
-        LocalTime.ofNanoOfDay(value * 1000L).format(DateTimeFormatter.ISO_LOCAL_TIME));
+        LocalTime.ofNanoOfDay(value * 1000L).format(FORMATTER_HH_mm_ss_SSSSSS));
   }
 
   private static JsonNode convertDebeziumDateToTextNode(long value) {
