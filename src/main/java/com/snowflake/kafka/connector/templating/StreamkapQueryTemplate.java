@@ -198,16 +198,17 @@ public class StreamkapQueryTemplate {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> getCreateSqlDataForTable(String tableName, SinkRecord record) {
         Map<String, Object> data = getCreateSqlData();
         Map<String, Object> dataForCurrentTable = new ConcurrentHashMap<>(data);
-        if (data.containsKey("TABLE_DATA") && data.get("TABLE_DATA") instanceof Map) {
-            @SuppressWarnings("unchecked")
-			Map<String, Object> tableSpecificProps = (Map<String, Object>)data.get("TABLE_DATA"); 
+        Object tableSpecificPropsObj = data.get("TABLE_DATA");
+        if (tableSpecificPropsObj instanceof Map) {
+            Map<String, Object> tableSpecificProps = (Map<String, Object>) tableSpecificPropsObj;
 
-            if (tableSpecificProps.containsKey(tableName.toUpperCase()) && tableSpecificProps.get(tableName.toUpperCase()) instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> propsForCurrentTable = (Map<String, Object>) tableSpecificProps.get(tableName.toUpperCase());
+            Object propsForCurrentTableObj = tableSpecificProps.get(tableName.toUpperCase());
+            if (propsForCurrentTableObj instanceof Map) {
+                Map<String, Object> propsForCurrentTable = (Map<String, Object>) propsForCurrentTableObj;
                 dataForCurrentTable.putAll(propsForCurrentTable);
             }
         }
@@ -238,15 +239,16 @@ public class StreamkapQueryTemplate {
             LOGGER.info("Apply SQL template on table: {}", tableName);
             try {
                 Connection con = conn.getConnection();
+                Mustache template = getCreateTemplate(record.topic());
+                List<String> statements = generateSqlFromTemplate(tableName, record, template, dataForTable);
                 try (Statement stmt = con.createStatement()) {
-                    Mustache template = getCreateTemplate(record.topic());
-                    List<String> statements = generateSqlFromTemplate(tableName, record, template, dataForTable);
                     applyDdlStatements(con, statements);
                     processedTopics.putIfAbsent(record.topic(), true);
                     scriptAppliedSuccessfully = true;
                     LOGGER.info("Additional query executed successfully for table: {}", tableName);
                 } catch (Exception e) {
-                    LOGGER.warn("Failure executing additional statements for table {}.", tableName, e);
+                    LOGGER.warn("Failure executing additional statements for table {}, the list of additional statements[{}]",
+                      tableName, String.join(" , ", statements), e);
                 }
             } catch (Exception e) {
                 LOGGER.error("Error getting connection", e);

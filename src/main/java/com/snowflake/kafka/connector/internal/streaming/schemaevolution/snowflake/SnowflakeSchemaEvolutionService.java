@@ -90,6 +90,7 @@ public class SnowflakeSchemaEvolutionService implements SchemaEvolutionService {
       TableSchema tableSchema =
           tableSchemaResolver.resolveTableSchemaFromRecord(record, extraColNamesOrderedAsOnSource);
       try {
+        tableName = tableName.split("\\.")[1];
         conn.appendColumnsToTable(tableName, tableSchema.getColumnInfos());
       } catch (SnowflakeKafkaConnectorException e) {
         LOGGER.warn(

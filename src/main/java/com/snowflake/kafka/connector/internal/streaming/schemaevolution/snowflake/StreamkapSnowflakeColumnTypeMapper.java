@@ -33,9 +33,12 @@ public class StreamkapSnowflakeColumnTypeMapper extends SnowflakeColumnTypeMappe
 
       if (kafkaType == ARRAY) {
         switch (schemaName) {
-          case "io.debezium.time.Date": return "ARRAY(DATE)";
-          case "io.debezium.time.MicroTime": return "ARRAY(TIME(6))";
-          case "io.debezium.time.Timestamp": return "ARRAY(TIMESTAMP_TZ)";
+//          case "io.debezium.time.Date": return "ARRAY(DATE)";
+//          case "io.debezium.time.MicroTime": return "ARRAY(TIME(6))";
+//          case "io.debezium.time.Timestamp": return "ARRAY(TIMESTAMP)";
+          case "io.debezium.time.Date": return "ARRAY";
+          case "io.debezium.time.MicroTime": return "ARRAY";
+          case "io.debezium.time.Timestamp": return "ARRAY";
         }
       } else {
 
