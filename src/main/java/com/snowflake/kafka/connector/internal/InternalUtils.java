@@ -317,14 +317,20 @@ public class InternalUtils {
   }
 
   protected static Properties parseJdbcPropertiesMap(Map<String, String> conf) {
-    String jdbcConfigMapInput = conf.get(SnowflakeSinkConnectorConfig.SNOWFLAKE_JDBC_MAP);
-    if (jdbcConfigMapInput == null) {
-      return new Properties();
-    }
-    Map<String, String> jdbcMap = Utils.parseCommaSeparatedKeyValuePairs(jdbcConfigMapInput);
-    Properties properties = new Properties();
-    properties.putAll(jdbcMap);
-    return properties;
+      String jdbcConfigMapInput = conf.get(SnowflakeSinkConnectorConfig.SNOWFLAKE_JDBC_MAP);
+      Properties properties = new Properties();
+      if (jdbcConfigMapInput == null) {
+        properties.put("application", "JDBC_Streamkap_Snowpipe");
+        return properties;
+      }
+      Map<String, String> jdbcMap = Utils.parseCommaSeparatedKeyValuePairs(jdbcConfigMapInput);
+      boolean hasApplicationKey = jdbcMap.keySet().stream()
+              .anyMatch(k -> k.equalsIgnoreCase("application"));
+      if (!hasApplicationKey) {
+          jdbcMap.put("application", "JDBC_Streamkap_Snowpipe");
+      }
+      properties.putAll(jdbcMap);
+      return properties;
   }
 
   /**
