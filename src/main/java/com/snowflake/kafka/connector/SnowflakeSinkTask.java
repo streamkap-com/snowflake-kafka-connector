@@ -96,6 +96,9 @@ public class SnowflakeSinkTask extends SinkTask {
   private final SnowflakeSinkTaskAuthorizationExceptionTracker authorizationExceptionTracker =
       new SnowflakeSinkTaskAuthorizationExceptionTracker();
 
+  // Scheduler for periodic Snowflake connection ping to register partner ID
+  private SnowflakePingScheduler pingScheduler;
+
   /** default constructor, invoked by kafka connect framework */
   public SnowflakeSinkTask() {
     DYNAMIC_LOGGER = new KCLogger(this.getClass().getName());
@@ -242,6 +245,10 @@ public class SnowflakeSinkTask extends SinkTask {
     }
     this.streamkapQueryTemplate = StreamkapQueryTemplate.buildStreamkapQueryTemplateFromConfig(parsedConfig);
 
+    // Start periodic ping scheduler to register partner ID via JDBC connection
+    this.pingScheduler = new SnowflakePingScheduler(getConnection(), this.taskConfigId, DYNAMIC_LOGGER);
+    this.pingScheduler.start();
+
     DYNAMIC_LOGGER.info(
         "task started, execution time: {} milliseconds",
         this.taskConfigId,
@@ -263,6 +270,11 @@ public class SnowflakeSinkTask extends SinkTask {
    */
   @Override
   public void stop() {
+    // Stop the ping scheduler
+    if (this.pingScheduler != null) {
+      this.pingScheduler.stop();
+    }
+
     if (this.sink != null) {
       this.sink.stop();
     }
