@@ -43,8 +43,8 @@ public class DirectStreamingClientHandler implements StreamingClientHandler {
 
     try {
       SnowflakeStreamingIngestClientFactory.Builder builder =
-          SnowflakeStreamingIngestClientFactory.builder(
-                  streamingClientProperties.clientName + "_" + createdClientId.getAndIncrement())
+          SnowflakeStreamingIngestClientFactory.builder(streamingClientProperties.clientName)
+              //    streamingClientProperties.clientName + "_" + createdClientId.getAndIncrement())
               .setProperties(streamingClientProperties.clientProperties)
               .setParameterOverrides(streamingClientProperties.parameterOverrides);
 

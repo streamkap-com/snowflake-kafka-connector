@@ -47,6 +47,7 @@ import net.snowflake.ingest.utils.Constants;
 public class StreamingClientProperties {
   public static final String STREAMING_CLIENT_PREFIX_NAME = "KC_CLIENT_";
   public static final String DEFAULT_CLIENT_NAME = "DEFAULT_CLIENT";
+  public static final String STREAMING_CLIENT_STREAMKAP_NAME = "Streamkap_Snowpipe_Streaming";
 
   private static final KCLogger LOGGER = new KCLogger(StreamingClientProperties.class.getName());
 
@@ -85,9 +86,10 @@ public class StreamingClientProperties {
 
     this.isIcebergEnabled = Utils.isIcebergEnabled(connectorConfig);
 
-    this.clientName =
-        STREAMING_CLIENT_PREFIX_NAME
-            + connectorConfig.getOrDefault(Utils.NAME, DEFAULT_CLIENT_NAME);
+    // Using a fixed client name for easier identification in Snowflake UI
+    this.clientName = StreamingClientProperties.STREAMING_CLIENT_STREAMKAP_NAME;
+//        STREAMING_CLIENT_PREFIX_NAME
+//            + connectorConfig.getOrDefault(Utils.NAME, DEFAULT_CLIENT_NAME);
 
     // Override only if the streaming client properties are explicitly set in config
     this.parameterOverrides = new HashMap<>();
