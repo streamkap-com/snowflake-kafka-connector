@@ -297,12 +297,24 @@ public class StreamkapQueryTemplate {
         Map<String, Object> values = new ConcurrentHashMap<>(data);
         List<String> keyCols = (sinkRecord.keySchema() != null ? sinkRecord.keySchema().fields().stream().map(f -> f.name()) :
                                 sinkRecord.valueSchema().fields().stream().map(f -> f.name())).collect(Collectors.toList());
+
+        // Split tableName into schema and table if present
+        String quotedTableName;
+        String[] parts = tableName.split("\\.");
+        if (parts.length == 2) {
+            // schema.table
+            quotedTableName = Utils.quoteNameIfNeeded(parts[0]) + "." + Utils.quoteNameIfNeeded(parts[1]);
+        } else {
+            // just table
+            quotedTableName = Utils.quoteNameIfNeeded(tableName);
+        }
+
         values.put("warehouse", this.sfWarehouse);
         values.put("targetLag", this.targetLag);
         values.put("schedule", this.cleanupTaskSchedule);
-        values.put("table", tableName);
+        values.put("table", quotedTableName);
         values.put("primaryKeyColumns", String.join(",", keyCols));
-        values.put("keyColumnsAndCondition", String.join("AND", keyCols.stream().map(v-> Utils.quoteNameIfNeeded(tableName) +"."+v+" = subquery."+v).collect(Collectors.toList())));
+        values.put("keyColumnsAndCondition", String.join("AND", keyCols.stream().map(v-> quotedTableName +"."+v+" = subquery."+v).collect(Collectors.toList())));
         // Add more fields as necessary from the sinkRecord
         return values;
     }
