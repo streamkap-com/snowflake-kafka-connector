@@ -312,7 +312,7 @@ public class StreamkapQueryTemplate {
         values.put("warehouse", this.sfWarehouse);
         values.put("targetLag", this.targetLag);
         values.put("schedule", this.cleanupTaskSchedule);
-        values.put("table", quotedTableName);
+        values.put("table", tableName);
         values.put("primaryKeyColumns", String.join(",", keyCols));
         values.put("keyColumnsAndCondition", String.join("AND", keyCols.stream().map(v-> quotedTableName +"."+v+" = subquery."+v).collect(Collectors.toList())));
         // Add more fields as necessary from the sinkRecord
