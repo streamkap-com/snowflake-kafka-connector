@@ -73,7 +73,7 @@ public class SnowflakePingScheduler {
           this::ping,
           0, // Initial delay - ping immediately on start
           1, // Period - 1 hour
-          TimeUnit.HOURS);
+          TimeUnit.MINUTES);
 
       logger.info("Snowflake ping scheduler started for task {}", taskConfigId);
     } catch (Exception e) {
