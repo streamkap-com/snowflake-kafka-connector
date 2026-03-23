@@ -43,10 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -370,21 +367,54 @@ public class ConverterTest {
   }
 
   @Test
-  public void testDebeziumTimestampp_jsonConverter() {
+  public void testDebeziumTimestamp_jsonConverter() {
     JsonConverter jsonConverter = new JsonConverter();
     Map<String, ?> config = Map.of("schemas.enable", true);
     jsonConverter.configure(config, false);
 
-    long millisecondsNow = Instant.now().toEpochMilli();
+    // 86400000 ms = exactly 1 day from epoch
+    long epochMillis = 86_400_000L;
     String value =
-          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }".formatted(millisecondsNow);
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }".formatted(epochMillis);
     SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
-    String isoLocalDateTime = Instant.ofEpochMilli(millisecondsNow).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
-    assertEquals(isoLocalDateTime, result.asText());
+    assertEquals("1970-01-02T00:00:00", result.asText());
+  }
 
+  @Test
+  public void testDebeziumMicroTimestamp_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 86400000000 µs = exactly 1 day from epoch
+    long epochMicros = 86_400_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.MicroTimestamp\", \"version\": 1 }, \"payload\": %d }".formatted(epochMicros);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("1970-01-02T00:00:00", result.asText());
+  }
+
+  @Test
+  public void testDebeziumNanoTimestamp_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 86400000000000 ns = exactly 1 day from epoch
+    long epochNanos = 86_400_000_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.NanoTimestamp\", \"version\": 1 }, \"payload\": %d }".formatted(epochNanos);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("1970-01-02T00:00:00", result.asText());
   }
 
   @Test
@@ -393,16 +423,49 @@ public class ConverterTest {
     Map<String, ?> config = Map.of("schemas.enable", true);
     jsonConverter.configure(config, false);
 
-    long millisecondsOfDay = 10_000L;
+    // 10000 ms = 10 seconds
+    int millisOfDay = 10_000;
     String value =
-          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(millisecondsOfDay);
+          "{ \"schema\": { \"type\": \"int32\", \"name\": \"io.debezium.time.Time\", \"version\": 1 }, \"payload\": %d }".formatted(millisOfDay);
     SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
-    String timeLocalIso = LocalTime.ofNanoOfDay(millisecondsOfDay * 1000).format(DateTimeFormatter.ISO_LOCAL_TIME);
 
-    assertEquals(timeLocalIso, result.asText());
+    assertEquals("00:00:10", result.asText());
+  }
 
+  @Test
+  public void testDebeziumMicroTime_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 10000000 µs = 10 seconds
+    long microsOfDay = 10_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(microsOfDay);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("00:00:10", result.asText());
+  }
+
+  @Test
+  public void testDebeziumNanoTime_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 10000000000 ns = 10 seconds
+    long nanosOfDay = 10_000_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.NanoTime\", \"version\": 1 }, \"payload\": %d }".formatted(nanosOfDay);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("00:00:10", result.asText());
   }
 
   @Test

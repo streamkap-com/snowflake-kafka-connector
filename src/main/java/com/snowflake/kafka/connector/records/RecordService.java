@@ -25,8 +25,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
 import com.snowflake.kafka.connector.internal.KCLogger;
 import com.snowflake.kafka.connector.internal.SnowflakeErrors;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.connect.data.ConnectSchema;
 import org.apache.kafka.connect.data.Date;
@@ -48,6 +46,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,8 +60,12 @@ import java.util.TimeZone;
 public class RecordService {
 
   private static final String DEBEZIUM_DATE = "io.debezium.time.Date";
-  private static final String DEBEZIUM_TIME = "io.debezium.time.MicroTime";
+  private static final String DEBEZIUM_TIME = "io.debezium.time.Time";
+  private static final String DEBEZIUM_MICROTIME = "io.debezium.time.MicroTime";
+  private static final String DEBEZIUM_NANOTIME = "io.debezium.time.NanoTime";
   private static final String DEBEZIUM_TIMESTAMP = "io.debezium.time.Timestamp";
+  private static final String DEBEZIUM_MICROTIMESTAMP = "io.debezium.time.MicroTimestamp";
+  private static final String DEBEZIUM_NANOTIMESTAMP = "io.debezium.time.NanoTimestamp";
 
   private final KCLogger LOGGER = new KCLogger(RecordService.class.getName());
 
@@ -313,9 +316,12 @@ public boolean setAndGetAutoSchematizationFromConfig(
     return result;
   }
 
-  private static JsonNode convertDebeziumTimeToTextNode(long value) {
+  private static final long NANOS_PER_MILLI = 1_000_000L;
+  private static final long NANOS_PER_MICRO = 1_000L;
+
+  private static JsonNode convertDebeziumTimeToTextNode(long value, long nanosMultiplier) {
     return JsonNodeFactory.instance.textNode(
-        LocalTime.ofNanoOfDay(value * 1000L).format(DateTimeFormatter.ISO_LOCAL_TIME));
+        LocalTime.ofNanoOfDay(value * nanosMultiplier).format(DateTimeFormatter.ISO_LOCAL_TIME));
   }
 
   private static JsonNode convertDebeziumDateToTextNode(long value) {
@@ -323,9 +329,10 @@ public boolean setAndGetAutoSchematizationFromConfig(
         LocalDate.ofEpochDay(value).format(DateTimeFormatter.ISO_LOCAL_DATE));
   }
 
-  private static JsonNode convertDebeziumTimestampTextNode(long value) {
+  private static JsonNode convertDebeziumTimestampToTextNode(long value, long nanosMultiplier) {
     return JsonNodeFactory.instance.textNode(
-        Instant.ofEpochMilli(value).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        Instant.ofEpochSecond(0, value * nanosMultiplier).atZone(ZoneOffset.UTC)
+            .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
   }
 
   /**
@@ -387,17 +394,32 @@ public boolean setAndGetAutoSchematizationFromConfig(
           if (schema != null && DEBEZIUM_DATE.equals(schema.name())) {
             return convertDebeziumDateToTextNode((Integer) value);
           }
+          if (schema != null && DEBEZIUM_TIME.equals(schema.name())) {
+            return convertDebeziumTimeToTextNode((Integer) value, NANOS_PER_MILLI);
+          }
           return JsonNodeFactory.instance.numberNode((Integer) value);
         case INT64:
-          if (schema != null && Timestamp.LOGICAL_NAME.equals(schema.name())) {
-            return JsonNodeFactory.instance.numberNode(
-                Timestamp.fromLogical(schema, (java.util.Date) value));
-          }
-          if (schema != null && DEBEZIUM_TIME.equals(schema.name())) {
-             return convertDebeziumTimeToTextNode((Long) value);
-          }
-          if (schema != null && DEBEZIUM_TIMESTAMP.equals(schema.name())) {
-            return convertDebeziumTimestampTextNode((Long) value);
+          if (schema != null) {
+            String name = schema.name();
+            if (Timestamp.LOGICAL_NAME.equals(name)) {
+              return JsonNodeFactory.instance.numberNode(
+                  Timestamp.fromLogical(schema, (java.util.Date) value));
+            }
+            if (DEBEZIUM_MICROTIME.equals(name)) {
+              return convertDebeziumTimeToTextNode((Long) value, NANOS_PER_MICRO);
+            }
+            if (DEBEZIUM_NANOTIME.equals(name)) {
+              return convertDebeziumTimeToTextNode((Long) value, 1L);
+            }
+            if (DEBEZIUM_TIMESTAMP.equals(name)) {
+              return convertDebeziumTimestampToTextNode((Long) value, NANOS_PER_MILLI);
+            }
+            if (DEBEZIUM_MICROTIMESTAMP.equals(name)) {
+              return convertDebeziumTimestampToTextNode((Long) value, NANOS_PER_MICRO);
+            }
+            if (DEBEZIUM_NANOTIMESTAMP.equals(name)) {
+              return convertDebeziumTimestampToTextNode((Long) value, 1L);
+            }
           }
           return JsonNodeFactory.instance.numberNode((Long) value);
         case FLOAT32:
