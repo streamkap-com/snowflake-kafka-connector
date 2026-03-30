@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheException;
 import com.github.mustachejava.MustacheFactory;
 import com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig;
 import com.snowflake.kafka.connector.Utils;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.io.Writer;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -38,7 +40,16 @@ public class StreamkapQueryTemplate {
     private int cleanupTaskSchedule = 60;
     private long schemaChangeIntervalMs =0;
     private boolean isSFWarehouseExists = false;
-    static MustacheFactory mustacheFactory = new DefaultMustacheFactory();
+    static MustacheFactory mustacheFactory = new DefaultMustacheFactory() {
+        @Override
+        public void encode(String value, Writer writer) {
+            try {
+                writer.write(value);
+                } catch (IOException e) {
+                throw new MustacheException("Failed to write value", e);
+                }
+            }
+        };
     private long schemaCheckTime;
     private boolean applyDynamicTableScript;
     private final ConcurrentHashMap<String, SinkRecord> recordByTopic = new ConcurrentHashMap<>();
@@ -315,7 +326,7 @@ public class StreamkapQueryTemplate {
         values.put("table", tableName);
         values.put("quotedTable", quotedTableName);
         values.put("primaryKeyColumns", String.join(",", keyCols));
-        values.put("keyColumnsAndCondition", String.join("AND", keyCols.stream().map(v-> quotedTableName +"."+v+" = subquery."+v).collect(Collectors.toList())));
+        values.put("keyColumnsAndCondition", String.join(" AND ", keyCols.stream().map(v-> quotedTableName +"."+v+" = subquery."+v).collect(Collectors.toList())));
         // Add more fields as necessary from the sinkRecord
         return values;
     }
