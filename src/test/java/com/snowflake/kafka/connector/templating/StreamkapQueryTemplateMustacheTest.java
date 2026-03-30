@@ -1,23 +1,20 @@
 package com.snowflake.kafka.connector.templating;
 
-import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
-import com.github.mustachejava.MustacheException;
-import com.github.mustachejava.MustacheFactory;
 import com.snowflake.kafka.connector.Utils;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Reproduces the Mustache HTML-escaping issue where {{quotedTable}} containing
@@ -25,17 +22,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * producing invalid SQL with unexpected '&' characters.
  */
 public class StreamkapQueryTemplateMustacheTest {
-
-    static final MustacheFactory mustacheFactory = new DefaultMustacheFactory(){
-        @Override
-        public void encode(String value, Writer writer) {
-            try {
-                writer.write(value);
-            } catch (IOException e) {
-                throw new MustacheException("Failed to write value", e);
-            }
-        }
-    };
 
     static final String CREATE_SQL_TEMPLATE =
             "CREATE OR REPLACE DYNAMIC TABLE {{table}}_DT TARGET_LAG='{{targetLag}} minutes' " +
@@ -68,7 +54,7 @@ public class StreamkapQueryTemplateMustacheTest {
                 .map(v -> quotedTableName + "." + v + " = subquery." + v)
                 .collect(Collectors.toList())));
 
-        Mustache template = mustacheFactory.compile(new StringReader(CREATE_SQL_TEMPLATE), "test-template");
+        Mustache template = StreamkapQueryTemplate.mustacheFactory.compile(new StringReader(CREATE_SQL_TEMPLATE), "test-template");
         StringWriter writer = new StringWriter();
         template.execute(writer, values);
         String renderedSql = writer.toString();
@@ -109,7 +95,7 @@ public class StreamkapQueryTemplateMustacheTest {
                 .map(v -> quotedTableName + "." + v + " = subquery." + v)
                 .collect(Collectors.toList())));
 
-        Mustache template = mustacheFactory.compile(new StringReader(CREATE_SQL_TEMPLATE), "test-schema-template");
+        Mustache template = StreamkapQueryTemplate.mustacheFactory.compile(new StringReader(CREATE_SQL_TEMPLATE), "test-schema-template");
         StringWriter writer = new StringWriter();
         template.execute(writer, values);
         String renderedSql = writer.toString();
