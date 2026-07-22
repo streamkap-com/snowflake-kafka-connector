@@ -489,6 +489,10 @@ public class ConverterTest {
       assertEquals("2026-01-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1768478400000L));
       // 2026-07-15T12:00:00Z -- EDT (UTC-4) in America/New_York
       assertEquals("2026-07-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1784116800000L));
+      // 2026-03-08T02:20:49Z -- the exact value cited in this PR's own test plan as an example
+      // DST-gap value. Under the buggy ZoneId.systemDefault() code this reinterprets as
+      // 2026-03-07T21:20:49 (-5h, EST); under UTC it must round-trip unchanged.
+      assertEquals("2026-03-08T02:20:49", convertDebeziumTimestamp(jsonConverter, 1772936449000L));
     } finally {
       TimeZone.setDefault(original);
     }
