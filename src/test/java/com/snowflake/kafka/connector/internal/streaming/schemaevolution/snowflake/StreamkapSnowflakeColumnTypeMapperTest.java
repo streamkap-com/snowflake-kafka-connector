@@ -60,7 +60,11 @@ class StreamkapSnowflakeColumnTypeMapperTest {
         Arguments.of(Schema.Type.FLOAT64, null, "DOUBLE"),
         Arguments.of(Schema.Type.BOOLEAN, null, "BOOLEAN"),
         Arguments.of(Schema.Type.STRING, null, "VARCHAR"),
-        Arguments.of(Schema.Type.BYTES, Decimal.LOGICAL_NAME, "VARCHAR"),
+        // Hardcoded to DECIMAL(38,7) regardless of the schema's actual scale/precision (not an
+        // input to this method) -- source decimals with scale > 7 or > 31 integer digits lose
+        // precision on ingestion. See ENG-2503; RecordService's Decimal branch is the only
+        // guard, and it only catches precision > 38, never scale.
+        Arguments.of(Schema.Type.BYTES, Decimal.LOGICAL_NAME, "DECIMAL(38,7)"),
         Arguments.of(Schema.Type.BYTES, null, "BINARY"),
         Arguments.of(Schema.Type.ARRAY, null, "ARRAY"),
         Arguments.of(Schema.Type.STRUCT, null, "VARIANT"),

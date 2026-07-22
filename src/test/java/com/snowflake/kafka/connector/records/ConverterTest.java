@@ -62,6 +62,7 @@ import net.snowflake.client.jdbc.internal.apache.commons.codec.binary.Hex;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -468,6 +469,68 @@ public class ConverterTest {
     assertEquals("00:00:10", result.asText());
   }
 
+  /**
+   * Pins the JVM default zone to a DST-observing zone so a regression to {@code
+   * ZoneId.systemDefault()} (instead of {@code ZoneOffset.UTC}) fails here even when the build
+   * runs on a UTC CI runner, where systemDefault() == UTC and the bug would otherwise go
+   * unnoticed. Asserts against two dates on opposite sides of a DST boundary so a fixed-offset
+   * bug (e.g. hardcoding a non-UTC zone) cannot coincidentally pass.
+   */
+  @Test
+  public void testDebeziumTimestamp_jsonConverter_isTimezoneIndependent() {
+    TimeZone original = TimeZone.getDefault();
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+
+      JsonConverter jsonConverter = new JsonConverter();
+      jsonConverter.configure(Map.of("schemas.enable", true), false);
+
+      // 2026-01-15T12:00:00Z -- EST (UTC-5) in America/New_York
+      assertEquals("2026-01-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1768478400000L));
+      // 2026-07-15T12:00:00Z -- EDT (UTC-4) in America/New_York
+      assertEquals("2026-07-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1784116800000L));
+    } finally {
+      TimeZone.setDefault(original);
+    }
+  }
+
+  private static String convertDebeziumTimestamp(JsonConverter jsonConverter, long epochMillis) {
+    String value =
+        "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }"
+            .formatted(epochMillis);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+    return RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false)
+        .asText();
+  }
+
+  /**
+   * TimestampConv (the backend SMT) only rewrites top-level Struct fields matching its
+   * schema.name filter -- it cannot see into ARRAY element schemas, so array elements of
+   * io.debezium.time.Timestamp reach this path with their raw Debezium schema name intact. This
+   * pins a non-UTC default zone for the same reason as the scalar test above.
+   */
+  @Test
+  public void testDebeziumTimestampArray_jsonConverter_isTimezoneIndependent() {
+    TimeZone original = TimeZone.getDefault();
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+
+      Schema elementSchema =
+          SchemaBuilder.int64().name("io.debezium.time.Timestamp").version(1).build();
+      Schema arraySchema = SchemaBuilder.array(elementSchema).build();
+
+      JsonNode result =
+          RecordService.convertToJson(
+              arraySchema, List.of(1768478400000L, 1784116800000L), false);
+
+      assertEquals(2, result.size());
+      assertEquals("2026-01-15T12:00:00", result.get(0).asText());
+      assertEquals("2026-07-15T12:00:00", result.get(1).asText());
+    } finally {
+      TimeZone.setDefault(original);
+    }
+  }
+
   @Test
   public void testConnectJsonConverter_MapBigDecimalExceedsMaxPrecision()
       throws JsonProcessingException {
@@ -485,6 +548,49 @@ public class ConverterTest {
     expected.put("test", new BigDecimal("999999999999999999999999999999999999999"));
     // TODO: uncomment it once KAFKA-10457 is merged
     // assertEquals(expected.toString(), result.toString());
+  }
+
+  /**
+   * StreamkapSnowflakeColumnTypeMapper hardcodes every Decimal/BYTES field to a DECIMAL(38,7)
+   * column regardless of the schema's actual scale (ENG-2503). This locks in the boundary that
+   * actually causes the resulting precision loss: RecordService's only Decimal guard is total
+   * precision > 38 (MAX_SNOWFLAKE_NUMBER_PRECISION); it never checks scale, so a value with
+   * scale > 7 passes through as a full-precision JSON number and is silently rounded by
+   * Snowflake's own ingestion into the DECIMAL(38,7) column -- not by this connector.
+   */
+  @Test
+  public void testDecimal_jsonConverter_scaleAboveSevenIsNotGuarded() {
+    Schema schema = Decimal.schema(9);
+    BigDecimal value = new BigDecimal("123456.123456789"); // scale 9, precision 15
+
+    JsonNode result = RecordService.convertToJson(schema, value, false);
+
+    assertTrue(result.isNumber());
+    assertEquals(value, result.decimalValue());
+  }
+
+  /** Precision <= 38 (MAX_SNOWFLAKE_NUMBER_PRECISION): serializes as a number, unguarded. */
+  @Test
+  public void testDecimal_jsonConverter_precisionAtMaxSerializesAsNumber() {
+    Schema schema = Decimal.schema(2);
+    BigDecimal value = new BigDecimal("9".repeat(36) + ".12"); // precision 38
+
+    JsonNode result = RecordService.convertToJson(schema, value, false);
+
+    assertTrue(result.isNumber());
+    assertEquals(value, result.decimalValue());
+  }
+
+  /** Precision > 38: RecordService's only Decimal guard kicks in, falling back to text. */
+  @Test
+  public void testDecimal_jsonConverter_precisionAboveMaxFallsBackToText() {
+    Schema schema = Decimal.schema(2);
+    BigDecimal value = new BigDecimal("9".repeat(37) + ".12"); // precision 39
+
+    JsonNode result = RecordService.convertToJson(schema, value, false);
+
+    assertTrue(result.isTextual());
+    assertEquals(value.toString(), result.asText());
   }
 
   @Test
