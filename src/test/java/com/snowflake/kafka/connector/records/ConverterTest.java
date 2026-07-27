@@ -43,10 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -65,6 +62,7 @@ import net.snowflake.client.jdbc.internal.apache.commons.codec.binary.Hex;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -370,21 +368,54 @@ public class ConverterTest {
   }
 
   @Test
-  public void testDebeziumTimestampp_jsonConverter() {
+  public void testDebeziumTimestamp_jsonConverter() {
     JsonConverter jsonConverter = new JsonConverter();
     Map<String, ?> config = Map.of("schemas.enable", true);
     jsonConverter.configure(config, false);
 
-    long millisecondsNow = Instant.now().toEpochMilli();
+    // 86400000 ms = exactly 1 day from epoch
+    long epochMillis = 86_400_000L;
     String value =
-          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }".formatted(millisecondsNow);
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }".formatted(epochMillis);
     SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
-    String isoLocalDateTime = Instant.ofEpochMilli(millisecondsNow).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
-    assertEquals(isoLocalDateTime, result.asText());
+    assertEquals("1970-01-02T00:00:00", result.asText());
+  }
 
+  @Test
+  public void testDebeziumMicroTimestamp_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 86400000000 µs = exactly 1 day from epoch
+    long epochMicros = 86_400_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.MicroTimestamp\", \"version\": 1 }, \"payload\": %d }".formatted(epochMicros);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("1970-01-02T00:00:00", result.asText());
+  }
+
+  @Test
+  public void testDebeziumNanoTimestamp_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 86400000000000 ns = exactly 1 day from epoch
+    long epochNanos = 86_400_000_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.NanoTimestamp\", \"version\": 1 }, \"payload\": %d }".formatted(epochNanos);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("1970-01-02T00:00:00", result.asText());
   }
 
   @Test
@@ -393,16 +424,115 @@ public class ConverterTest {
     Map<String, ?> config = Map.of("schemas.enable", true);
     jsonConverter.configure(config, false);
 
-    long millisecondsOfDay = 10_000L;
+    // 10000 ms = 10 seconds
+    int millisOfDay = 10_000;
     String value =
-          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(millisecondsOfDay);
+          "{ \"schema\": { \"type\": \"int32\", \"name\": \"io.debezium.time.Time\", \"version\": 1 }, \"payload\": %d }".formatted(millisOfDay);
     SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
-    String timeLocalIso = LocalTime.ofNanoOfDay(millisecondsOfDay * 1000).format(DateTimeFormatter.ISO_LOCAL_TIME);
 
-    assertEquals(timeLocalIso, result.asText());
+    assertEquals("00:00:10", result.asText());
+  }
 
+  @Test
+  public void testDebeziumMicroTime_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 10000000 µs = 10 seconds
+    long microsOfDay = 10_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.MicroTime\", \"version\": 1 }, \"payload\": %d }".formatted(microsOfDay);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("00:00:10", result.asText());
+  }
+
+  @Test
+  public void testDebeziumNanoTime_jsonConverter() {
+    JsonConverter jsonConverter = new JsonConverter();
+    Map<String, ?> config = Map.of("schemas.enable", true);
+    jsonConverter.configure(config, false);
+
+    // 10000000000 ns = 10 seconds
+    long nanosOfDay = 10_000_000_000L;
+    String value =
+          "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.NanoTime\", \"version\": 1 }, \"payload\": %d }".formatted(nanosOfDay);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+
+    JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
+
+    assertEquals("00:00:10", result.asText());
+  }
+
+  /**
+   * Pins the JVM default zone to a DST-observing zone so a regression to {@code
+   * ZoneId.systemDefault()} (instead of {@code ZoneOffset.UTC}) fails here even when the build
+   * runs on a UTC CI runner, where systemDefault() == UTC and the bug would otherwise go
+   * unnoticed. Asserts against two dates on opposite sides of a DST boundary so a fixed-offset
+   * bug (e.g. hardcoding a non-UTC zone) cannot coincidentally pass.
+   */
+  @Test
+  public void testDebeziumTimestamp_jsonConverter_isTimezoneIndependent() {
+    TimeZone original = TimeZone.getDefault();
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+
+      JsonConverter jsonConverter = new JsonConverter();
+      jsonConverter.configure(Map.of("schemas.enable", true), false);
+
+      // 2026-01-15T12:00:00Z -- EST (UTC-5) in America/New_York
+      assertEquals("2026-01-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1768478400000L));
+      // 2026-07-15T12:00:00Z -- EDT (UTC-4) in America/New_York
+      assertEquals("2026-07-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1784116800000L));
+      // 2026-03-08T02:20:49Z -- the exact value cited in this PR's own test plan as an example
+      // DST-gap value. Under the buggy ZoneId.systemDefault() code this reinterprets as
+      // 2026-03-07T21:20:49 (-5h, EST); under UTC it must round-trip unchanged.
+      assertEquals("2026-03-08T02:20:49", convertDebeziumTimestamp(jsonConverter, 1772936449000L));
+    } finally {
+      TimeZone.setDefault(original);
+    }
+  }
+
+  private static String convertDebeziumTimestamp(JsonConverter jsonConverter, long epochMillis) {
+    String value =
+        "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }"
+            .formatted(epochMillis);
+    SchemaAndValue schemaInputValue = jsonConverter.toConnectData("test", value.getBytes());
+    return RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false)
+        .asText();
+  }
+
+  /**
+   * TimestampConv (the backend SMT) only rewrites top-level Struct fields matching its
+   * schema.name filter -- it cannot see into ARRAY element schemas, so array elements of
+   * io.debezium.time.Timestamp reach this path with their raw Debezium schema name intact. This
+   * pins a non-UTC default zone for the same reason as the scalar test above.
+   */
+  @Test
+  public void testDebeziumTimestampArray_jsonConverter_isTimezoneIndependent() {
+    TimeZone original = TimeZone.getDefault();
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+
+      Schema elementSchema =
+          SchemaBuilder.int64().name("io.debezium.time.Timestamp").version(1).build();
+      Schema arraySchema = SchemaBuilder.array(elementSchema).build();
+
+      JsonNode result =
+          RecordService.convertToJson(
+              arraySchema, List.of(1768478400000L, 1784116800000L), false);
+
+      assertEquals(2, result.size());
+      assertEquals("2026-01-15T12:00:00", result.get(0).asText());
+      assertEquals("2026-07-15T12:00:00", result.get(1).asText());
+    } finally {
+      TimeZone.setDefault(original);
+    }
   }
 
   @Test
@@ -422,6 +552,49 @@ public class ConverterTest {
     expected.put("test", new BigDecimal("999999999999999999999999999999999999999"));
     // TODO: uncomment it once KAFKA-10457 is merged
     // assertEquals(expected.toString(), result.toString());
+  }
+
+  /**
+   * StreamkapSnowflakeColumnTypeMapper hardcodes every Decimal/BYTES field to a DECIMAL(38,7)
+   * column regardless of the schema's actual scale (ENG-2503). This locks in the boundary that
+   * actually causes the resulting precision loss: RecordService's only Decimal guard is total
+   * precision > 38 (MAX_SNOWFLAKE_NUMBER_PRECISION); it never checks scale, so a value with
+   * scale > 7 passes through as a full-precision JSON number and is silently rounded by
+   * Snowflake's own ingestion into the DECIMAL(38,7) column -- not by this connector.
+   */
+  @Test
+  public void testDecimal_jsonConverter_scaleAboveSevenIsNotGuarded() {
+    Schema schema = Decimal.schema(9);
+    BigDecimal value = new BigDecimal("123456.123456789"); // scale 9, precision 15
+
+    JsonNode result = RecordService.convertToJson(schema, value, false);
+
+    assertTrue(result.isNumber());
+    assertEquals(value, result.decimalValue());
+  }
+
+  /** Precision <= 38 (MAX_SNOWFLAKE_NUMBER_PRECISION): serializes as a number, unguarded. */
+  @Test
+  public void testDecimal_jsonConverter_precisionAtMaxSerializesAsNumber() {
+    Schema schema = Decimal.schema(2);
+    BigDecimal value = new BigDecimal("9".repeat(36) + ".12"); // precision 38
+
+    JsonNode result = RecordService.convertToJson(schema, value, false);
+
+    assertTrue(result.isNumber());
+    assertEquals(value, result.decimalValue());
+  }
+
+  /** Precision > 38: RecordService's only Decimal guard kicks in, falling back to text. */
+  @Test
+  public void testDecimal_jsonConverter_precisionAboveMaxFallsBackToText() {
+    Schema schema = Decimal.schema(2);
+    BigDecimal value = new BigDecimal("9".repeat(37) + ".12"); // precision 39
+
+    JsonNode result = RecordService.convertToJson(schema, value, false);
+
+    assertTrue(result.isTextual());
+    assertEquals(value.toString(), result.asText());
   }
 
   @Test
