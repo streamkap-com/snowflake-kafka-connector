@@ -439,6 +439,11 @@ public class DirectTopicPartitionChannel implements TopicPartitionChannel {
               response.hasErrors());
 
           handleInsertRowFailure(response.getInsertErrors(), kafkaSinkRecord);
+        } else {
+          LOGGER.debug(
+              "insertRow succeeded with no validation errors for channel:{}, kafkaOffset:{}",
+              this.getChannelNameFormatV1(),
+              kafkaSinkRecord.kafkaOffset());
         }
       }
 
