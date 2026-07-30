@@ -56,7 +56,9 @@ class IcebergTableStreamingRecordMapper extends StreamingRecordMapper {
         .collect(HashMap::new, (m, v) -> m.put(v.getKey(), v.getValue()), HashMap::putAll);
   }
 
-  private Map<String, Object> getMapForMetadata(JsonNode metadataNode)
+  // Visibility widened to protected (upstream: private) so StreamkapIcebergTableStreamingRecordMapper
+  // can override and post-process the metadata map. See ENG-2504.
+  protected Map<String, Object> getMapForMetadata(JsonNode metadataNode)
       throws JsonProcessingException {
     Map<String, Object> values = mapper.convertValue(metadataNode, OBJECTS_MAP_TYPE_REFERENCE);
     // we don't want headers to be serialized as Map<String, Object> so we overwrite it as
