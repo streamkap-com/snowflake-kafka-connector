@@ -12,7 +12,7 @@
 
     <groupId>com.snowflake</groupId>
     <artifactId>snowflake-kafka-connector</artifactId>
-    <version>3.2.2</version>
+    <version>3.5.4</version>
     <packaging>jar</packaging>
     <name>Snowflake Kafka Connector</name>
     <description>Snowflake Kafka Connect Sink Connector</description>
@@ -39,6 +39,9 @@
         <connection>
             scm:git:https://github.com/snowflakedb/snowflake-kafka-connector.git
         </connection>
+        <developerConnection>
+            scm:git:https://github.com/snowflakedb/snowflake-kafka-connector.git
+        </developerConnection>
         <url>https://github.com/snowflakedb/snowflake-kafka-connector</url>
     </scm>
 
@@ -50,7 +53,7 @@
         <skipUnitTests>${skipTests}</skipUnitTests>
         <skipIntegrationTests>${skipTests}</skipIntegrationTests>
 
-        <kafka.version>3.9.0</kafka.version>
+        <kafka.version>3.9.2</kafka.version>
         <awaitility.version>4.2.2</awaitility.version>
         <assertj-core.version>3.26.3</assertj-core.version>
         <confluent.version>7.9.2</confluent.version>
@@ -58,11 +61,13 @@
         <protobuf.version>3.25.5</protobuf.version>
         <guava.version>33.4.0-jre</guava.version>
         <iceberg.version>1.6.1</iceberg.version>
-        <jackson.version>2.18.2</jackson.version>
+        <jackson.version>2.18.6</jackson.version>
         <commons-compress.version>1.27.1</commons-compress.version>
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
-        <snowflake-jdbc.version>3.24.2</snowflake-jdbc.version>
+        <snowflake-jdbc.version>3.26.1</snowflake-jdbc.version>
+        <snowflake-ingest-sdk.version>4.4.2</snowflake-ingest-sdk.version>
         <slf4j-api.version>2.0.17</slf4j-api.version>
+        <commons-lang3.version>3.18.0</commons-lang3.version>
     </properties>
 
 
@@ -87,12 +92,6 @@
         </repository>
     </repositories>
 
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
     <build>
         <plugins>
             <plugin>
@@ -154,14 +153,12 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.7.0</version>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.8.0</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <serverId>ossrh</serverId>
-                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                    <autoPublish>true</autoPublish>
                 </configuration>
             </plugin>
             <plugin>
@@ -292,7 +289,6 @@
             <version>2.1.8</version>
             <scope>provided</scope>
         </dependency>
-
         <!-- https://mvnrepository.com/artifact/org.apache.kafka/connect-api -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -317,6 +313,10 @@
                     <artifactId>lz4-java</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>at.yawk.lz4</groupId>
+                    <artifactId>lz4-java</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.xerial.snappy</groupId>
                     <artifactId>snappy-java</artifactId>
                 </exclusion>
@@ -330,6 +330,10 @@
             <exclusions>
                 <exclusion>
                     <groupId>org.lz4</groupId>
+                    <artifactId>lz4-java</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>at.yawk.lz4</groupId>
                     <artifactId>lz4-java</artifactId>
                 </exclusion>
                 <exclusion>
@@ -354,11 +358,11 @@
         <dependency>
             <groupId>net.snowflake</groupId>
             <artifactId>snowflake-ingest-sdk</artifactId>
-            <version>3.1.2</version>
+            <version>${snowflake-ingest-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>net.snowflake</groupId>
-                    <artifactId>snowflake-jdbc</artifactId>
+                    <artifactId>snowflake-jdbc-thin</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -392,6 +396,19 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
             <version>${commons-compress.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-lang3</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Direct dependency for commons-lang3 with latest version to fix CVE-2025-48924 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>${commons-lang3.version}</version>
         </dependency>
         
         <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core -->
@@ -447,12 +464,6 @@
         <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>kafka-connect-avro-converter</artifactId>
-            <version>${confluent.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>kafka-schema-rules</artifactId>
             <version>${confluent.version}</version>
         </dependency>
 
@@ -652,6 +663,10 @@
                     <artifactId>lz4-java</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>at.yawk.lz4</groupId>
+                    <artifactId>lz4-java</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
                 </exclusion>
@@ -675,11 +690,25 @@
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-api</artifactId>
             <version>${iceberg.version}</version>
+            <exclusions>
+                <!-- aircompressor is only used by iceberg's PuffinFormat, which is not exercised by the connector.
+                     Excluded to remove unfixed CVE GHSA-vx9q-rhv9-3jvg from the shaded artifact. -->
+                <exclusion>
+                    <groupId>io.airlift</groupId>
+                    <artifactId>aircompressor</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-core</artifactId>
             <version>${iceberg.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.airlift</groupId>
+                    <artifactId>aircompressor</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
     </dependencies>
@@ -751,7 +780,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.11.2</version>
+                <version>5.13.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

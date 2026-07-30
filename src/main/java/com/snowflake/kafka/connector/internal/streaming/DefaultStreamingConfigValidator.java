@@ -2,6 +2,10 @@ package com.snowflake.kafka.connector.internal.streaming;
 
 import static com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig.*;
 import static com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig.INGESTION_METHOD_OPT;
+import static com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig.KEY_CONVERTER_CONFIG_FIELD;
+import static com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig.SNOWPIPE_STREAMING_MAX_CLIENT_LAG;
+import static com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig.SNOWPIPE_STREAMING_MAX_MEMORY_LIMIT_IN_BYTES;
+import static com.snowflake.kafka.connector.SnowflakeSinkConnectorConfig.VALUE_CONVERTER_CONFIG_FIELD;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -87,6 +91,12 @@ public class DefaultStreamingConfigValidator implements StreamingConfigValidator
                 ENABLE_CHANNEL_OFFSET_TOKEN_MIGRATION_CONFIG,
                 inputConfig.get(ENABLE_CHANNEL_OFFSET_TOKEN_MIGRATION_CONFIG));
           }
+          if (inputConfig.containsKey(
+              SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG)) {
+            BOOLEAN_VALIDATOR.ensureValid(
+                SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG,
+                inputConfig.get(SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG));
+          }
           if (inputConfig.containsKey(ENABLE_CHANNEL_OFFSET_TOKEN_VERIFICATION_FUNCTION_CONFIG)) {
             BOOLEAN_VALIDATOR.ensureValid(
                 ENABLE_CHANNEL_OFFSET_TOKEN_VERIFICATION_FUNCTION_CONFIG,
@@ -110,6 +120,8 @@ public class DefaultStreamingConfigValidator implements StreamingConfigValidator
 
           // Valid schematization for Snowpipe Streaming
           invalidParams.putAll(validateSchematizationConfig(inputConfig));
+
+          invalidParams.putAll(validateChannelNameV2Usage(inputConfig));
         }
       } catch (ConfigException exception) {
         invalidParams.put(
@@ -131,6 +143,30 @@ public class DefaultStreamingConfigValidator implements StreamingConfigValidator
           param,
           Utils.formatString(
               param + " configuration must be a parsable long. Given configuration" + " was: {}",
+              inputConfig.get(param)));
+    }
+  }
+
+  private static void ensureValidIntWithMinimum(
+      Map<String, String> inputConfig,
+      String param,
+      int minimumValue,
+      Map<String, String> invalidParams) {
+    try {
+      int value = Integer.parseInt(inputConfig.get(param));
+      if (value < minimumValue) {
+        invalidParams.put(
+            param,
+            Utils.formatString(
+                param + " configuration must be at least {}. Given configuration was: {}",
+                minimumValue,
+                value));
+      }
+    } catch (NumberFormatException exception) {
+      invalidParams.put(
+          param,
+          Utils.formatString(
+              param + " configuration must be a parsable int. Given configuration was: {}",
               inputConfig.get(param)));
     }
   }
@@ -191,6 +227,30 @@ public class DefaultStreamingConfigValidator implements StreamingConfigValidator
     }
 
     return invalidParams;
+  }
+
+  private static Map<String, String> validateChannelNameV2Usage(Map<String, String> config) {
+    Map<String, String> invalidConfigParams = new HashMap<>();
+
+    boolean useV2Naming =
+        config.containsKey(SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG)
+            ? Boolean.parseBoolean(
+                config.get(SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG))
+            : SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_DEFAULT;
+    boolean enableV2toV1NameMigration =
+        config.containsKey(ENABLE_CHANNEL_OFFSET_TOKEN_MIGRATION_CONFIG)
+            ? Boolean.parseBoolean(config.get(ENABLE_CHANNEL_OFFSET_TOKEN_MIGRATION_CONFIG))
+            : ENABLE_CHANNEL_OFFSET_TOKEN_MIGRATION_DEFAULT;
+    if (useV2Naming && enableV2toV1NameMigration) {
+      invalidConfigParams.put(
+          SnowflakeSinkConnectorConfig
+              .SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG,
+          Utils.formatString(
+              "Using streaming channel name version V2 requires '{}' to be disabled.",
+              ENABLE_CHANNEL_OFFSET_TOKEN_MIGRATION_CONFIG));
+    }
+
+    return invalidConfigParams;
   }
 
   /** Config validations specific to single buffer architecture */

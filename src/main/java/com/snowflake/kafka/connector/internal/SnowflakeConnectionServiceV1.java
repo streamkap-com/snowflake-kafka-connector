@@ -568,7 +568,11 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
 
     boolean hasPermission = hasRolePrivilege && hasTableOptionEnabled;
     LOGGER.info(
-        String.format("Table: %s has schema evolution permission: %s", tableName, hasPermission));
+        "Table {} has enable_schema_evolution -> {}. Role {} has evolve_schema/ownership -> {}.",
+        tableName,
+        hasTableOptionEnabled,
+        role,
+        hasRolePrivilege);
     return hasPermission;
   }
 
@@ -1281,6 +1285,16 @@ public class SnowflakeConnectionServiceV1 implements SnowflakeConnectionService 
         OBJECT_MAPPER.readValue(
             migrateOffsetTokenResultFromSysFunc, ChannelMigrateOffsetTokenResponseDTO.class);
     return channelMigrateOffsetTokenResponseDTO;
+  }
+
+  @Override
+  public boolean isValid(int timeoutSeconds) {
+    try {
+      return this.conn != null && this.conn.isValid(timeoutSeconds);
+    } catch (SQLException e) {
+      LOGGER.warn("Error checking connection validity: {}", e.getMessage());
+      return false;
+    }
   }
 
   public static class FormattingUtils {

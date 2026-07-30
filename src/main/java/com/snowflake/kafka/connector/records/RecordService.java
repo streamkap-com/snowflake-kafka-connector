@@ -51,7 +51,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Process records output JSON format: <i>{ "meta": { "offset": 123, "topic": "topic name",
@@ -87,6 +89,9 @@ public class RecordService {
   private boolean autoSchematization = true;
   private SnowflakeSinkConnectorConfig.BehaviorOnNullValues behaviorOnNullValues =
       SnowflakeSinkConnectorConfig.BehaviorOnNullValues.DEFAULT;
+
+  private static final ConcurrentHashMap<Class<?>, Optional<Schema.Type>> SCHEMA_TYPE_CACHE =
+      new ConcurrentHashMap<>();
 
   // For each task, we require a separate instance of SimpleDataFormat, since they are not
   // inherently thread safe
@@ -212,7 +217,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
   public String getProcessedRecordForSnowpipe(SinkRecord record) {
     SnowflakeTableRow row =
         processRecord(
-            record, /*connectorPushTime=*/ null); // ConnectorPushTime is not used for Snowpipe.
+            record, /* connectorPushTime= */ null); // ConnectorPushTime is not used for Snowpipe.
     StringBuilder buffer = new StringBuilder();
     for (JsonNode node : row.content.getData()) {
       ObjectNode data = mapper.createObjectNode();
@@ -361,9 +366,11 @@ public boolean setAndGetAutoSchematizationFromConfig(
     try {
       final Schema.Type schemaType;
       if (schema == null) {
-        Schema.Type primitiveType = ConnectSchema.schemaType(value.getClass());
-        if (primitiveType != null) {
-          schemaType = primitiveType;
+        Optional<Schema.Type> cachedType =
+            SCHEMA_TYPE_CACHE.computeIfAbsent(
+                value.getClass(), clazz -> Optional.ofNullable(ConnectSchema.schemaType(clazz)));
+        if (cachedType.isPresent()) {
+          schemaType = cachedType.get();
         } else {
           if (value instanceof java.util.Date) {
             schema = Timestamp.SCHEMA;
@@ -402,8 +409,10 @@ public boolean setAndGetAutoSchematizationFromConfig(
           if (schema != null) {
             String name = schema.name();
             if (Timestamp.LOGICAL_NAME.equals(name)) {
-              return JsonNodeFactory.instance.numberNode(
-                  Timestamp.fromLogical(schema, (java.util.Date) value));
+              // STR-4728: emit a string, not a number — Iceberg's typed parser rejects a raw Long
+              // for TIMESTAMP columns (classic tables tolerate either). Matches upstream v3.5.4.
+              return JsonNodeFactory.instance.textNode(
+                  String.valueOf(Timestamp.fromLogical(schema, (java.util.Date) value)));
             }
             if (DEBEZIUM_MICROTIME.equals(name)) {
               return convertDebeziumTimeToTextNode((Long) value, NANOS_PER_MICRO);

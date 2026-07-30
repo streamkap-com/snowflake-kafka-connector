@@ -598,8 +598,7 @@ public class ConverterTest {
   }
 
   @Test
-  public void testConnectSimpleHeaderConverter_MapDateAndOtherTypes()
-      throws JsonProcessingException, ParseException {
+  public void testConnectSimpleHeaderConverter_MapDateAndOtherTypes() throws ParseException {
     SimpleHeaderConverter headerConverter = new SimpleHeaderConverter();
     String timestamp = "1970-03-22T00:00:00.000Z";
     String rawHeader = "{\"f1\": \"" + timestamp + "\", \"f2\": true}";
@@ -610,10 +609,11 @@ public class ConverterTest {
         RecordService.convertToJson(schemaAndValue.schema(), schemaAndValue.value(), false);
 
     ObjectNode expected = mapper.createObjectNode();
-    long expectedTimestampValue =
-        new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-            .parse("1970-03-22T00:00:00.000Z")
-            .getTime();
+    String expectedTimestampValue =
+        String.valueOf(
+            new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                .parse("1970-03-22T00:00:00.000Z")
+                .getTime());
     expected.put("f1", expectedTimestampValue);
     expected.put("f2", true);
     assertEquals(expected.toString(), result.toString());

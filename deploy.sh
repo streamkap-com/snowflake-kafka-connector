@@ -25,23 +25,23 @@ if ! gpg --list-secret-key | grep "$GPG_KEY_ID"; then
   gpg --allow-secret-key-import --import "$GPG_PRIVATE_KEY"
 fi
 
-OSSRH_DEPLOY_SETTINGS_XML="$THIS_DIR/mvn_settings_ossrh_deploy.xml"
+CENTRAL_DEPLOY_SETTINGS_XML="$THIS_DIR/mvn_settings_central_deploy.xml"
 
-cat > $OSSRH_DEPLOY_SETTINGS_XML << SETTINGS.XML
+cat > $CENTRAL_DEPLOY_SETTINGS_XML << SETTINGS.XML
 <?xml version="1.0" encoding="UTF-8"?>
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
      xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
   <servers>
     <server>
-      <id>ossrh</id>
+      <id>central</id>
       <username>$SONATYPE_USER</username>
       <password>$SONATYPE_PWD</password>
     </server>
   </servers>
   <profiles>
       <profile>
-        <id>ossrh</id>
+        <id>central</id>
         <activation>
           <activeByDefault>true</activeByDefault>
         </activation>
@@ -55,11 +55,58 @@ cat > $OSSRH_DEPLOY_SETTINGS_XML << SETTINGS.XML
 </settings>
 SETTINGS.XML
 
-mvn --settings $OSSRH_DEPLOY_SETTINGS_XML -DskipTests clean deploy
+mvn --settings $CENTRAL_DEPLOY_SETTINGS_XML -DskipTests clean deploy
 
 #confluent release
-mvn -f pom_confluent.xml --settings $OSSRH_DEPLOY_SETTINGS_XML -DskipTests clean package
+mvn -f pom_confluent.xml --settings $CENTRAL_DEPLOY_SETTINGS_XML -DskipTests clean package
 #white source
 # whitesource/run_whitesource.sh
 
+# Produce a SHA-256 checksum and a detached, ASCII-armored GPG signature
+# next to the given artifact. Run sha256sum from inside the artifact's
+# directory so the checksum file records only the basename, which keeps
+# `sha256sum -c` working for downstream consumers.
+sign_and_hash_artifact() {
+  local artifact="$1"
+  local artifact_dir
+  local artifact_base
+  artifact_dir="$(cd "$(dirname "$artifact")" && pwd)"
+  artifact_base="$(basename "$artifact")"
+
+  echo "[INFO] Generating SHA-256 checksum for $artifact_base"
+  (
+    cd "$artifact_dir"
+    sha256sum "$artifact_base" > "${artifact_base}.sha256"
+  )
+
+  echo "[INFO] Generating GPG detached signature for $artifact_base"
+  local passphrase_file rc=0
+  # Scope umask 077 to the mktemp subshell so the tighter mask does not
+  # leak into the caller's shell.
+  passphrase_file="$(umask 077 && mktemp)"
+  # EXIT trap fires reliably even on `set -e`-induced exit, unlike RETURN.
+  # Belt-and-suspenders: also rm explicitly below so the tempfile cannot
+  # outlive a single sign_and_hash_artifact invocation in a multi-call loop.
+  trap 'rm -f "$passphrase_file"' EXIT
+  printf '%s' "$GPG_KEY_PASSPHRASE" > "$passphrase_file"
+
+  gpg --detach-sign --armor \
+      --batch --pinentry-mode loopback \
+      --passphrase-file "$passphrase_file" \
+      --local-user "$GPG_KEY_ID" \
+      --output "${artifact}.asc" "$artifact" || rc=$?
+
+  rm -f "$passphrase_file"
+  trap - EXIT
+  return $rc
+}
+
+# Sign and hash every Confluent zip produced by the package step above so
+# the .asc and .sha256 sidecars are uploaded alongside the .zip.
+for zip in target/components/packages/*.zip; do
+  sign_and_hash_artifact "$zip"
+done
+
 aws s3 cp target/components/packages/*.zip s3://sfc-eng-jenkins/repository/kafka/
+aws s3 cp target/components/packages/ s3://sfc-eng-jenkins/repository/kafka/ \
+  --recursive --exclude "*" --include "*.zip.asc" --include "*.zip.sha256"

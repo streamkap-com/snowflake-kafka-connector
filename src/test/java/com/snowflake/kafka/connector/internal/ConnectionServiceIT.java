@@ -28,9 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
-import net.snowflake.client.jdbc.internal.apache.http.Header;
-import net.snowflake.client.jdbc.internal.apache.http.HttpHeaders;
-import net.snowflake.client.jdbc.internal.apache.http.client.methods.HttpPost;
+import net.snowflake.ingest.internal.org.apache.http.Header;
+import net.snowflake.ingest.internal.org.apache.http.HttpHeaders;
+import net.snowflake.ingest.internal.org.apache.http.client.methods.HttpPost;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.AfterEach;
@@ -440,7 +440,9 @@ public class ConnectionServiceIT {
     SnowflakeConnectionService conn =
         SnowflakeConnectionServiceFactory.builder().setProperties(testConfig).build();
     conn.createTable(tableName);
-    final String channelNameFormatV1 = SnowflakeSinkServiceV2.partitionChannelKey(tableName, 0);
+    final String channelNameFormatV1 =
+        SnowflakeSinkServiceV2.partitionChannelKey(
+            null /* connectorName - V1 format does not use */, tableName, 0);
 
     final String sourceChannelName =
         TopicPartitionChannel.generateChannelNameFormatV2(channelNameFormatV1, TEST_CONNECTOR_NAME);

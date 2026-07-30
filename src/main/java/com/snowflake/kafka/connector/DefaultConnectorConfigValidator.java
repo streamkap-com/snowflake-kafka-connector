@@ -132,6 +132,14 @@ public class DefaultConnectorConfigValidator implements ConnectorConfigValidator
                 "Streaming channel offset verification function is only available with {}.",
                 IngestionMethodConfig.SNOWPIPE_STREAMING.toString()));
       }
+      if (config.containsKey(SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG)) {
+        invalidConfigParams.put(
+            SnowflakeSinkConnectorConfig
+                .SNOWPIPE_STREAMING_CHANNEL_NAME_INCLUDE_CONNECTOR_NAME_CONFIG,
+            Utils.formatString(
+                "Streaming channel name version is only available with {}.",
+                IngestionMethodConfig.SNOWPIPE_STREAMING.toString()));
+      }
     }
 
     if (config.containsKey(SnowflakeSinkConnectorConfig.TOPICS_TABLES_MAP)
@@ -163,7 +171,7 @@ public class DefaultConnectorConfigValidator implements ConnectorConfigValidator
     switch (config
         .getOrDefault(SnowflakeSinkConnectorConfig.AUTHENTICATOR_TYPE, Utils.SNOWFLAKE_JWT)
         .toLowerCase()) {
-        // TODO: SNOW-889748 change to enum
+      // TODO: SNOW-889748 change to enum
       case Utils.SNOWFLAKE_JWT:
         if (!config.containsKey(SnowflakeSinkConnectorConfig.SNOWFLAKE_PRIVATE_KEY)) {
           invalidConfigParams.put(
