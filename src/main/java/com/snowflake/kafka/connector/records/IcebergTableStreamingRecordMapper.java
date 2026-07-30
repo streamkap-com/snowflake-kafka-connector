@@ -56,21 +56,15 @@ class IcebergTableStreamingRecordMapper extends StreamingRecordMapper {
         .collect(HashMap::new, (m, v) -> m.put(v.getKey(), v.getValue()), HashMap::putAll);
   }
 
-  private Map<String, Object> getMapForMetadata(JsonNode metadataNode)
+  // Visibility widened to protected (upstream: private) so StreamkapIcebergTableStreamingRecordMapper
+  // can override and post-process the metadata map. See ENG-2504.
+  protected Map<String, Object> getMapForMetadata(JsonNode metadataNode)
       throws JsonProcessingException {
     Map<String, Object> values = mapper.convertValue(metadataNode, OBJECTS_MAP_TYPE_REFERENCE);
     // we don't want headers to be serialized as Map<String, Object> so we overwrite it as
     // Map<String, String>
     Map<String, String> headers = convertHeaders(metadataNode.findValue(HEADERS));
     values.put(HEADERS, headers);
-    // ENG-2504: the Iceberg metadata schema hardcodes `key STRING`, but a structured/composite CDC
-    // key (object/array) arrives as JSON and fails to ingest into a STRING column. Stringify a
-    // non-textual key to JSON text (mirrors the headers handling above); textual keys pass through
-    // unchanged.
-    JsonNode keyNode = metadataNode.get(KEY);
-    if (keyNode != null && !keyNode.isNull()) {
-      values.put(KEY, getTextualValue(keyNode));
-    }
     return values;
   }
 

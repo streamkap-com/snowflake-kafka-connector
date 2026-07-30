@@ -7,8 +7,10 @@ public class RecordServiceFactory {
       boolean isIcebergEnabled, boolean enableSchematization) {
     ObjectMapper objectMapper = new ObjectMapper();
     if (isIcebergEnabled) {
+      // Streamkap override (ENG-2504): stringifies structured Iceberg RECORD_METADATA.key.
       return new RecordService(
-          new IcebergTableStreamingRecordMapper(objectMapper, enableSchematization), objectMapper);
+          new StreamkapIcebergTableStreamingRecordMapper(objectMapper, enableSchematization),
+          objectMapper);
     } else {
       return new RecordService(
           new SnowflakeTableStreamingRecordMapper(objectMapper, enableSchematization),

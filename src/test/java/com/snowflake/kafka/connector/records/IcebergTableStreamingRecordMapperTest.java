@@ -278,21 +278,7 @@ class IcebergTableStreamingRecordMapperTest {
         Arguments.of(
             "Metadata with null field value",
             buildRow("{}", "{\"offset\": null}"),
-            mapWithNullableValuesOf("offset", null, "headers", ImmutableMap.of())),
-        // ENG-2504: structured/composite CDC keys must be stringified to JSON text so they fit the
-        // hardcoded `key STRING` Iceberg metadata column instead of failing ingestion.
-        Arguments.of(
-            "Metadata with plain string key is preserved",
-            buildRow("{}", "{\"key\": \"pk-123\", \"headers\": {}}"),
-            ImmutableMap.of("key", "pk-123", "headers", ImmutableMap.of())),
-        Arguments.of(
-            "Metadata with structured (composite) key is stringified",
-            buildRow("{}", "{\"key\": {\"id\": 1, \"sub\": \"a\"}, \"headers\": {}}"),
-            ImmutableMap.of("key", "{\"id\":1,\"sub\":\"a\"}", "headers", ImmutableMap.of())),
-        Arguments.of(
-            "Metadata with array key is stringified",
-            buildRow("{}", "{\"key\": [1, 2], \"headers\": {}}"),
-            ImmutableMap.of("key", "[1,2]", "headers", ImmutableMap.of())));
+            mapWithNullableValuesOf("offset", null, "headers", ImmutableMap.of())));
   }
 
   private static Stream<Arguments> prepareNoSchematizationData() throws JsonProcessingException {
