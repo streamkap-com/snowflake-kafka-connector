@@ -381,7 +381,7 @@ public class ConverterTest {
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
 
-    assertEquals("1970-01-02T00:00:00", result.asText());
+    assertEquals("1970-01-02T00:00:00Z", result.asText());
   }
 
   @Test
@@ -398,7 +398,7 @@ public class ConverterTest {
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
 
-    assertEquals("1970-01-02T00:00:00", result.asText());
+    assertEquals("1970-01-02T00:00:00Z", result.asText());
   }
 
   @Test
@@ -415,7 +415,7 @@ public class ConverterTest {
 
     JsonNode result = RecordService.convertToJson(schemaInputValue.schema(), schemaInputValue.value(), false);
 
-    assertEquals("1970-01-02T00:00:00", result.asText());
+    assertEquals("1970-01-02T00:00:00Z", result.asText());
   }
 
   @Test
@@ -485,14 +485,42 @@ public class ConverterTest {
       JsonConverter jsonConverter = new JsonConverter();
       jsonConverter.configure(Map.of("schemas.enable", true), false);
 
-      // 2026-01-15T12:00:00Z -- EST (UTC-5) in America/New_York
-      assertEquals("2026-01-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1768478400000L));
+      // ENG-2589: output now carries an explicit UTC offset (…Z) so the ingest SDK can't re-coerce
+      // it by its hardcoded default zone. 2026-01-15T12:00:00Z -- EST (UTC-5) in America/New_York
+      assertEquals("2026-01-15T12:00:00Z", convertDebeziumTimestamp(jsonConverter, 1768478400000L));
       // 2026-07-15T12:00:00Z -- EDT (UTC-4) in America/New_York
-      assertEquals("2026-07-15T12:00:00", convertDebeziumTimestamp(jsonConverter, 1784116800000L));
-      // 2026-03-08T02:20:49Z -- the exact value cited in this PR's own test plan as an example
-      // DST-gap value. Under the buggy ZoneId.systemDefault() code this reinterprets as
-      // 2026-03-07T21:20:49 (-5h, EST); under UTC it must round-trip unchanged.
-      assertEquals("2026-03-08T02:20:49", convertDebeziumTimestamp(jsonConverter, 1772936449000L));
+      assertEquals("2026-07-15T12:00:00Z", convertDebeziumTimestamp(jsonConverter, 1784116800000L));
+      // 2026-03-08T02:20:49Z -- DST-gap value. Under the buggy ZoneId.systemDefault() code this
+      // reinterprets as 2026-03-07T21:20:49 (-5h, EST); under UTC it must round-trip unchanged.
+      assertEquals("2026-03-08T02:20:49Z", convertDebeziumTimestamp(jsonConverter, 1772936449000L));
+    } finally {
+      TimeZone.setDefault(original);
+    }
+  }
+
+  /**
+   * ENG-2589: scalar Debezium Micro/Nano timestamps must also emit an explicit UTC offset, at full
+   * precision, at a DST spring-forward gap value (2025-03-09T02:30 -- a nonexistent local time in US
+   * DST zones, where an offset-less string would be pushed +1h by the downstream ingest SDK).
+   */
+  @Test
+  public void testDebeziumMicroAndNanoTimestamp_emitUtcOffsetAtFullPrecision() {
+    TimeZone original = TimeZone.getDefault();
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+
+      // 2025-03-09T02:30:00.123456789Z as nanoseconds since epoch
+      Schema nano = SchemaBuilder.int64().name("io.debezium.time.NanoTimestamp").version(1).build();
+      assertEquals(
+          "2025-03-09T02:30:00.123456789Z",
+          RecordService.convertToJson(nano, 1741487400123456789L, false).asText());
+
+      // 2025-03-09T02:30:00.123456Z as microseconds since epoch
+      Schema micro =
+          SchemaBuilder.int64().name("io.debezium.time.MicroTimestamp").version(1).build();
+      assertEquals(
+          "2025-03-09T02:30:00.123456Z",
+          RecordService.convertToJson(micro, 1741487400123456L, false).asText());
     } finally {
       TimeZone.setDefault(original);
     }
@@ -528,8 +556,8 @@ public class ConverterTest {
               arraySchema, List.of(1768478400000L, 1784116800000L), false);
 
       assertEquals(2, result.size());
-      assertEquals("2026-01-15T12:00:00", result.get(0).asText());
-      assertEquals("2026-07-15T12:00:00", result.get(1).asText());
+      assertEquals("2026-01-15T12:00:00Z", result.get(0).asText());
+      assertEquals("2026-07-15T12:00:00Z", result.get(1).asText());
     } finally {
       TimeZone.setDefault(original);
     }
