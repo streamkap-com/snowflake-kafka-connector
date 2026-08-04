@@ -330,9 +330,15 @@ public boolean setAndGetAutoSchematizationFromConfig(
   }
 
   private static JsonNode convertDebeziumTimestampToTextNode(long value, long nanosMultiplier) {
+    // ENG-2589: emit an explicit UTC offset (…Z), not a bare local date-time. Debezium
+    // Timestamp/Micro/Nano are epoch-based (a UTC instant); an offset-less string is ambiguous, and
+    // the Snowpipe Streaming ingest SDK parses it via LocalDateTime.atZone(<hardcoded LA default>) →
+    // a DST-gap +1h shift on typed TIMESTAMP columns. ISO_OFFSET_DATE_TIME makes the value
+    // self-describing (SDK takes its OffsetDateTime/UTC branch) while keeping the same fraction
+    // handling (nanoseconds preserved). TIME/DATE helpers stay offset-less by design.
     return JsonNodeFactory.instance.textNode(
         Instant.ofEpochSecond(0, value * nanosMultiplier).atZone(ZoneOffset.UTC)
-            .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
   }
 
   /**
