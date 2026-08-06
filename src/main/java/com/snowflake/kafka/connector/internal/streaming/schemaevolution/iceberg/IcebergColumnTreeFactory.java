@@ -19,7 +19,8 @@ public class IcebergColumnTreeFactory {
   private final IcebergColumnTypeMapper mapper;
 
   public IcebergColumnTreeFactory() {
-    this.mapper = new IcebergColumnTypeMapper();
+    // Streamkap override (ENG-2596): maps Kafka Decimal to DECIMAL(38,7), matching classic tables.
+    this.mapper = new StreamkapIcebergColumnTypeMapper();
   }
 
   IcebergColumnTree fromIcebergSchema(IcebergColumnSchema columnSchema) {
