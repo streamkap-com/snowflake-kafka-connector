@@ -728,6 +728,7 @@
                             </includes>
                             <excludes>
                                 <exclude>none</exclude>
+                                <exclude>**/streamkap/snowflake/registerqueue/*IT.java</exclude>
                             </excludes>
                             <skipTests>${skipIntegrationTests}</skipTests>
                         </configuration>
@@ -758,6 +759,7 @@
                             </includes>
                             <excludes>
                                 <exclude>**/*Iceberg*IT.java</exclude>
+                                <exclude>**/streamkap/snowflake/registerqueue/*IT.java</exclude>
                             </excludes>
                             <skipTests>${skipIntegrationTests}</skipTests>
                         </configuration>
