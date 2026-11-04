@@ -321,6 +321,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
     return result;
   }
 
+  private static final long NANOS_PER_SECOND = 1_000_000_000L;
   private static final long NANOS_PER_MILLI = 1_000_000L;
   private static final long NANOS_PER_MICRO = 1_000L;
 
@@ -341,8 +342,16 @@ public boolean setAndGetAutoSchematizationFromConfig(
     // a DST-gap +1h shift on typed TIMESTAMP columns. ISO_OFFSET_DATE_TIME makes the value
     // self-describing (SDK takes its OffsetDateTime/UTC branch) while keeping the same fraction
     // handling (nanoseconds preserved). TIME/DATE helpers stay offset-less by design.
+    //
+    // Split into whole seconds and nano-of-second before scaling: value * nanosMultiplier
+    // overflows a long outside ~1677-09-21..2262-04-11 and silently wraps to a wrong date
+    // (e.g. MySQL 0001-01-01 became 1754-08-30). floorDiv/floorMod keep negatives correct.
+    long unitsPerSecond = NANOS_PER_SECOND / nanosMultiplier;
     return JsonNodeFactory.instance.textNode(
-        Instant.ofEpochSecond(0, value * nanosMultiplier).atZone(ZoneOffset.UTC)
+        Instant.ofEpochSecond(
+                Math.floorDiv(value, unitsPerSecond),
+                Math.floorMod(value, unitsPerSecond) * nanosMultiplier)
+            .atZone(ZoneOffset.UTC)
             .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
   }
 
@@ -416,9 +425,13 @@ public boolean setAndGetAutoSchematizationFromConfig(
             String name = schema.name();
             if (Timestamp.LOGICAL_NAME.equals(name)) {
               // STR-4728: emit a string, not a number — Iceberg's typed parser rejects a raw Long
-              // for TIMESTAMP columns (classic tables tolerate either). Matches upstream v3.5.4.
-              return JsonNodeFactory.instance.textNode(
-                  String.valueOf(Timestamp.fromLogical(schema, (java.util.Date) value)));
+              // for TIMESTAMP columns (classic tables tolerate either).
+              // Emit an ISO-8601 UTC string, not the epoch-millis digits upstream v3.5.4 sends: the
+              // ingest SDK guesses the unit of a numeric string from its magnitude (seconds below
+              // ~1 year from 1970, microseconds beyond ~1000 years), so 1969-12-31 landed as
+              // 1967-04-07 and 9999-12-31 as 1978-01-11. Same format as the Debezium branches.
+              return convertDebeziumTimestampToTextNode(
+                  Timestamp.fromLogical(schema, (java.util.Date) value), NANOS_PER_MILLI);
             }
             if (DEBEZIUM_MICROTIME.equals(name)) {
               return convertDebeziumTimeToTextNode((Long) value, NANOS_PER_MICRO);

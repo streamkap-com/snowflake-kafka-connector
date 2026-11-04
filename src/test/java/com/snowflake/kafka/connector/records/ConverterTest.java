@@ -43,6 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -67,6 +68,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.json.JsonConverter;
 import org.apache.kafka.connect.storage.SimpleHeaderConverter;
 import org.junit.jupiter.api.Test;
@@ -526,6 +528,71 @@ public class ConverterTest {
     }
   }
 
+  /**
+   * ENG-2783: epoch value * nanos used to overflow a long beyond ~292 years from 1970 and wrap to
+   * a wrong date (0001-01-01 became 1754-08-30). Covers MySQL's full DATETIME range, the old
+   * overflow edges and a negative fractional value, at millisecond and microsecond precision.
+   */
+  @Test
+  public void testDebeziumTimestamp_fullRange_doesNotOverflow() {
+    Schema millis = SchemaBuilder.int64().name("io.debezium.time.Timestamp").version(1).build();
+    Schema micros =
+        SchemaBuilder.int64().name("io.debezium.time.MicroTimestamp").version(1).build();
+    String[] isoValues = {
+      "0001-01-01T00:00:00Z",
+      "0970-08-25T00:00:00Z",
+      "1677-09-21T00:12:43Z",
+      "1969-12-31T23:59:59.999Z",
+      "2262-04-11T23:47:17Z",
+      "2969-05-08T00:00:00Z",
+      "9999-12-31T23:59:59.999Z"
+    };
+    TimeZone original = TimeZone.getDefault();
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+      for (String iso : isoValues) {
+        Instant instant = Instant.parse(iso);
+        assertEquals(
+            iso, RecordService.convertToJson(millis, instant.toEpochMilli(), false).asText());
+        long epochMicros =
+            Math.addExact(
+                Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
+                instant.getNano() / 1_000);
+        assertEquals(iso, RecordService.convertToJson(micros, epochMicros, false).asText());
+      }
+    } finally {
+      TimeZone.setDefault(original);
+    }
+  }
+
+  /**
+   * ENG-2783: Connect Timestamp values (e.g. after the TimestampConv SMT) must be sent as ISO UTC
+   * strings. Epoch-millis digits let the ingest SDK guess the unit from magnitude, so values near
+   * 1970 were read as seconds (1969-12-31 landed as 1967-04-07) and far values as microseconds.
+   */
+  @Test
+  public void testConnectTimestamp_emitsIsoUtcString() {
+    String[] isoValues = {
+      "0001-01-01T00:00:00Z",
+      "1969-12-31T00:00:00Z",
+      "1969-12-31T01:00:00Z",
+      "1970-01-01T00:00:00Z",
+      "2026-03-08T02:20:49Z",
+      "2026-07-01T12:00:00Z",
+      "9999-12-31T23:59:59.999Z"
+    };
+    TimeZone original = TimeZone.getDefault();
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+      for (String iso : isoValues) {
+        java.util.Date date = java.util.Date.from(Instant.parse(iso));
+        assertEquals(iso, RecordService.convertToJson(Timestamp.SCHEMA, date, false).asText());
+      }
+    } finally {
+      TimeZone.setDefault(original);
+    }
+  }
+
   private static String convertDebeziumTimestamp(JsonConverter jsonConverter, long epochMillis) {
     String value =
         "{ \"schema\": { \"type\": \"int64\", \"name\": \"io.debezium.time.Timestamp\", \"version\": 1 }, \"payload\": %d }"
@@ -637,11 +704,13 @@ public class ConverterTest {
         RecordService.convertToJson(schemaAndValue.schema(), schemaAndValue.value(), false);
 
     ObjectNode expected = mapper.createObjectNode();
+    // ENG-2783: Connect Timestamp is emitted as an ISO UTC string, not epoch millis.
     String expectedTimestampValue =
-        String.valueOf(
-            new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-                .parse("1970-03-22T00:00:00.000Z")
-                .getTime());
+        Instant.ofEpochMilli(
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                    .parse("1970-03-22T00:00:00.000Z")
+                    .getTime())
+            .toString();
     expected.put("f1", expectedTimestampValue);
     expected.put("f2", true);
     assertEquals(expected.toString(), result.toString());
