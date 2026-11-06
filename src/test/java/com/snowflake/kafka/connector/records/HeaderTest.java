@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -127,7 +128,10 @@ public class HeaderTest {
     assertTrue(headerNode.has(timeName));
     assertEquals(TIME_FORMAT.format(timeData), headerNode.get(timeName).asText());
     assertTrue(headerNode.has(timestampName));
-    assertEquals(timestampData.getTime(), headerNode.get(timestampName).asLong());
+    // ENG-2783: Connect Timestamp is emitted as an ISO UTC string, not epoch millis.
+    assertEquals(
+        Instant.ofEpochMilli(timestampData.getTime()).toString(),
+        headerNode.get(timestampName).asText());
     assertEquals(
         bigDecimalExceedsMaxPrecisionData.toString(),
         headerNode.get(bigDecimalExceedsMaxPrecisionName).asText());
