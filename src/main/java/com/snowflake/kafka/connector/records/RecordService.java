@@ -335,7 +335,10 @@ public boolean setAndGetAutoSchematizationFromConfig(
         LocalDate.ofEpochDay(value).format(DateTimeFormatter.ISO_LOCAL_DATE));
   }
 
-  private static JsonNode convertDebeziumTimestampToTextNode(long value, long nanosMultiplier) {
+  // Epoch count (value units since 1970-01-01T00:00:00Z, each unit nanosMultiplier nanoseconds) to
+  // an ISO-8601 UTC string. Shared by Connect Timestamp (epoch millis via Timestamp.fromLogical) and
+  // Debezium Timestamp/MicroTimestamp/NanoTimestamp, which use the same epoch encoding.
+  private static JsonNode convertEpochToTimestampTextNode(long value, long nanosMultiplier) {
     // ENG-2589: emit an explicit UTC offset (…Z), not a bare local date-time. Debezium
     // Timestamp/Micro/Nano are epoch-based (a UTC instant); an offset-less string is ambiguous, and
     // the Snowpipe Streaming ingest SDK parses it via LocalDateTime.atZone(<hardcoded LA default>) →
@@ -430,7 +433,7 @@ public boolean setAndGetAutoSchematizationFromConfig(
               // ingest SDK guesses the unit of a numeric string from its magnitude (seconds below
               // ~1 year from 1970, microseconds beyond ~1000 years), so 1969-12-31 landed as
               // 1967-04-07 and 9999-12-31 as 1978-01-11. Same format as the Debezium branches.
-              return convertDebeziumTimestampToTextNode(
+              return convertEpochToTimestampTextNode(
                   Timestamp.fromLogical(schema, (java.util.Date) value), NANOS_PER_MILLI);
             }
             if (DEBEZIUM_MICROTIME.equals(name)) {
@@ -440,13 +443,13 @@ public boolean setAndGetAutoSchematizationFromConfig(
               return convertDebeziumTimeToTextNode((Long) value, 1L);
             }
             if (DEBEZIUM_TIMESTAMP.equals(name)) {
-              return convertDebeziumTimestampToTextNode((Long) value, NANOS_PER_MILLI);
+              return convertEpochToTimestampTextNode((Long) value, NANOS_PER_MILLI);
             }
             if (DEBEZIUM_MICROTIMESTAMP.equals(name)) {
-              return convertDebeziumTimestampToTextNode((Long) value, NANOS_PER_MICRO);
+              return convertEpochToTimestampTextNode((Long) value, NANOS_PER_MICRO);
             }
             if (DEBEZIUM_NANOTIMESTAMP.equals(name)) {
-              return convertDebeziumTimestampToTextNode((Long) value, 1L);
+              return convertEpochToTimestampTextNode((Long) value, 1L);
             }
           }
           return JsonNodeFactory.instance.numberNode((Long) value);
